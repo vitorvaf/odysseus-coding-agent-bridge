@@ -1,0 +1,15 @@
+{
+  "repository": "payment-hub",
+  "agent": "opencode",
+  "profile": "implementer",
+  "type": "Implement",
+  "accessMode": "WorkspaceWrite",
+  "baseReference": "dev",
+  "prompt": "Implemente o slice descrito.",
+  "runValidation": true,
+  "validationOverride": ["dotnet test"],
+  "timeoutSeconds": 1800,
+  "retentionDays": 30,
+  "diagnostic": false,
+  "idempotencyKey": "client-2026-07-27-001"
+}

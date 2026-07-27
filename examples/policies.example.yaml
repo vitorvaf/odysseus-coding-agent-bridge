@@ -1,0 +1,78 @@
+# Política de comandos — exemplo
+policy:
+  version: v1
+  defaultDecision: deny
+
+  commands:
+    allow:
+      - name: git_status
+        command: git status
+      - name: git_diff
+        command: git diff
+      - name: git_log
+        command: git log
+      - name: git_show
+        command: git show
+      - name: dotnet_restore
+        command: dotnet restore
+      - name: dotnet_build
+        command: dotnet build
+      - name: dotnet_test
+        command: dotnet test
+      - name: npm_ci
+        command: npm ci
+      - name: npm_run_lint
+        command: npm run lint
+      - name: npm_run_test
+        command: npm run test
+      - name: npm_run_build
+        command: npm run build
+      - name: docker_compose_config
+        command: docker compose config
+
+    conditional:
+      - name: git_checkout_new_branch
+        command: git checkout -b
+        requiresApproval: false
+      - name: curl
+        command: curl
+        requiresApproval: true
+        allowHosts:
+          - github.com
+          - git.internal
+      - name: wget
+        command: wget
+        requiresApproval: true
+        allowHosts:
+          - github.com
+
+    deny:
+      - name: git_push
+        command: git push
+        reason: "ADR-0008: push nunca é automático"
+      - name: git_reset_hard
+        command: git reset --hard
+      - name: sudo
+        command: sudo
+      - name: docker_compose_up
+        command: docker compose up
+      - name: rm_rf_root
+        command: "rm -rf /"
+
+  paths:
+    denyOutsideWorkspace: true
+    resolveSymlinks: true
+    sanitizeFilenames: true
+
+  resources:
+    defaultTimeoutSeconds: 1800
+    maxTimeoutSeconds: 86400
+    pidsLimit: 256
+    memoryLimit: "1g"
+    cpuLimit: "2.0"
+
+  network:
+    defaultAction: deny
+    allowOutbound:
+      - host: "git.internal"
+        description: "Repositório remoto"

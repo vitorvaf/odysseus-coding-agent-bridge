@@ -1,0 +1,40 @@
+# Agentes cadastrados — exemplo
+agents:
+  - id: opencode
+    displayName: OpenCode
+    enabled: true
+    imageRef: ocab/opencode-runner:1.0.0-MVP
+    capabilities:
+      - plan
+      - implement
+      - review
+      - document
+    profiles:
+      implementer:
+        description: Implementa tarefas descritas
+      reviewer:
+        description: Revisa alterações existentes
+      planner:
+        description: Produz planos sem aplicar
+
+  - id: codex
+    displayName: Codex
+    enabled: true
+    imageRef: ocab/codex-runner:1.0.0-MVP
+    capabilities:
+      - plan
+      - implement
+      - review
+    profiles:
+      implementer: {}
+      reviewer: {}
+
+  - id: antigravity
+    displayName: Antigravity
+    enabled: false
+    imageRef: ocab/antigravity-runner:1.0.0-MVP
+    capabilities:
+      - analyze
+      - review
+    profiles:
+      reviewer: {}

@@ -1,0 +1,55 @@
+# Repositórios cadastrados — exemplo
+# Apenas referência. Em produção, versionar e revisar antes de aplicar.
+repositories:
+  - slug: payment-hub
+    displayName: Payment Hub
+    urlCanonical: https://git.internal/payment-hub.git
+    defaultBranch: dev
+    writable: true
+    allowedAgents:
+      - opencode
+      - codex
+    validations:
+      - command: dotnet restore
+        cwd: ./
+        timeoutSeconds: 600
+      - command: dotnet build --no-restore
+        cwd: ./
+        timeoutSeconds: 900
+      - command: dotnet test --no-build
+        cwd: ./
+        timeoutSeconds: 1200
+    policies:
+      requireReview: true
+      maxFilesChanged: 30
+      denyPaths:
+        - .github/workflows
+        - deploy/
+
+  - slug: docs-site
+    displayName: Docs Site
+    urlCanonical: https://git.internal/docs-site.git
+    defaultBranch: main
+    writable: true
+    allowedAgents:
+      - opencode
+    validations:
+      - command: npm ci
+        cwd: ./
+        timeoutSeconds: 600
+      - command: npm run build
+        cwd: ./
+        timeoutSeconds: 600
+    policies:
+      requireReview: false
+
+  - slug: legacy-prod-readonly
+    displayName: Legacy Prod (read-only)
+    urlCanonical: https://git.internal/legacy.git
+    defaultBranch: main
+    writable: false
+    allowedAgents:
+      - opencode
+    validations: []
+    policies:
+      readOnlyOnly: true
