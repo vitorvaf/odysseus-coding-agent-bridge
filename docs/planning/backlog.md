@@ -373,6 +373,111 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **Documentação afetada:** este backlog, `docs/adr/0017-pin-opencode-version.md`, `docs/specs/005-opencode-runner/spec.md`, `docs/discovery/012-…` (smoke test), `docs/open-questions.md` (fechamento de `OQ-200` e `OQ-201`).
 
+#### Slice 1.2.2 — Deterministic E2E Lifecycle and Awaitable Dispatch
+
+**ID:** SLICE-STAB-003
+
+**Título:** Tornar a execução do Run awaitable, observável e deterministicamente validável ponta a ponta.
+
+**Objetivo:** Eliminar `Task.Run` fire-and-forget do `RunDispatcher`, introduzir `IRunExecutionCoordinator` com fila persistente no Postgres + `BackgroundService` worker + registry em memória de execuções ativas, e validar end-to-end com provedor LLM determinístico que o ciclo completo Pending → Running → Completed (com persistência do relatório), o cancelamento real (Pending/Running → Cancelled) e o timeout real (Running → TimedOut) funcionam.
+
+**Motivação:** O gate parcial da `SLICE-STAB-002` deixou dois pontos críticos sem cobertura ponta a ponta: (a) a execução completa de um prompt read-only não foi comprovada por limitação ambiental (sem provedor LLM); (b) o `Task.Run` fire-and-forget do `RunDispatcher.CreateAsync` dificulta cancelamento, timeout, reconciliação e testes determinísticos. Esses dois pontos atingem o **núcleo do sistema** — execução real e lifecycle observável — e não podem ser diferidos: são pré-condição da escrita em workspace.
+
+**Dependências:** `SLICE-STAB-002` (commit `1b75800`).
+
+**Escopo:**
+
+* `IRunExecutionCoordinator` com `EnqueueAsync(runId, ct)`, `WaitForTerminalAsync(runId, timeout, ct)` e `CancelAsync(runId, reason, ct)`. Implementação usa `runs` table como fila persistente, `BackgroundService` (`RunQueueWorker`) que faz poll de `Pending` runs e executa, registry em memória apenas para execuções ativas (com `CancellationTokenSource` por run e `TaskCompletionSource<RunTerminalResult>` por run para `WaitForTerminalAsync`).
+* `RunDispatcher` refatorado: `CreateAsync` apenas persiste Run com `status = Pending` e retorna `runId`; a execução é invocada pelo `RunQueueWorker` no escopo de `IServiceScope`. Toda exceção observada resulta em estado terminal conhecido (`Failed`); cancelamento e timeout são propagados via `CancellationTokenSource` associado à execução.
+* `Run` model ganha `TimeoutSeconds` (default configurável) e `ResultJson` (já existe) carregando o relatório final.
+* Provedor LLM determinístico para E2E: serviço HTTP mínimo (compatível com OpenAI / `chat/completions`) que responde de modo previsível (resposta concluída, lenta, bloqueada-para-cancelamento, erro de provider, resposta inválida). O OpenCode real continua no caminho; apenas a inferência é determinística.
+* Fixtures atualizadas para iniciar OpenCode real + provedor mock em portas separadas, e configurar o OpenCode via `opencode.json` para usar o mock como provider customizado.
+* `Bridge` ganha cliente HTTP para o provedor LLM e para o OpenCode; configuração via `Ocab:OpenCodeUrl` (já existe), `Ocab:OpenCodeProviderUrl` (novo) e `Ocab:OpenCodeProviderKey` (novo).
+* Atualização de Spec 003 (`run-lifecycle`) e Spec 005 (`opencode-runner`) para refletir ownership observável e fila persistente.
+* Atualização de `docs/testing/integration-tests.md` e `docs/testing/acceptance-tests.md` para cobrir completion, cancelamento e timeout E2E com fixture determinística.
+
+**Fora de escopo:**
+
+* Escrita em workspace (`SLICE-WORKSPACE-001`) — ainda não autorizada.
+* Code generation ou client gerado para o OpenCode — diferido para revisão futura.
+* Push, merge, abertura ou atualização de PR — ainda não autorizados.
+
+**Bloqueia:**
+
+* Fechamento definitivo de `OQ-200` e `OQ-201` (status parcial atual, requer E2E ponta a ponta verde).
+* Autorização de `SLICE-WORKSPACE-001` (Epic 2).
+
+**Critérios de aceite (gate completo):**
+
+* [ ] Sem `Task.Run` fire-and-forget não observado em `RunDispatcher` ou em código adjacente de execução.
+* [ ] Execuções ativas possuem ownership claro (registry em memória com `CancellationTokenSource` por run).
+* [ ] Prompt read-only real termina em `Completed` com relatório final persistido.
+* [ ] Resposta final do runner é persistida em `runs.result`.
+* [ ] Eventos reais (não apenas `session_started`) são persistidos em `run_events`.
+* [ ] `run_cancel` chega à execução ativa e termina em `Cancelled` com `POST /session/{id}/abort` chamado no OpenCode.
+* [ ] Timeout configurável termina em `TimedOut` com cancelamento upstream.
+* [ ] Erro do provedor (5xx ou resposta inválida) termina em `Failed` com `runner_unavailable` normalizado.
+* [ ] Não existem processos órfãos após os testes (OpenCode runner, provedor mock e bridge parados corretamente).
+* [ ] Origem Git permanece inalterada (`git rev-parse HEAD` antes/depois).
+* [ ] Testes locais verdes (14/14 existentes permanecem; novos testes E2E adicionados).
+* [ ] `OQ-200` e `OQ-201` permanecem fechadas com referência à evidência E2E.
+* [ ] Novo follow-up (se houver) documentado em `docs/open-questions.md` como não bloqueante.
+
+**Validações:**
+
+* **Unitários** (em `OcabBridge.UnitTests`):
+  * Transições de cancelamento (Pending → Cancelling → Cancelled; Running → Cancelling → Cancelled; idempotência).
+  * Transições de timeout (Running → TimedOut com persistência do evento).
+  * Corrida entre completion e cancelamento (completion vence → status final `Completed`; cancelamento chega tarde → sem transição retroativa).
+  * Corrida entre timeout e completion (idem).
+  * Exceção não observada no worker → `Failed` terminal garantido.
+  * Cancelamento idempotente (cancelar 2× não muda estado pós-terminal).
+* **Contrato** (em `OcabBridge.ContractTests`):
+  * `POST /session/{id}/abort` é chamado quando cancelamento é sinalizado.
+  * `CancellationToken` é propagado para o adapter e para o `HttpClient`.
+  * Timeout HTTP do `HttpClient` não é confundido com timeout do Run (são independentes).
+  * Resposta final é interpretada como `Completed` (evento `done` no SSE ou provider retorna `done` no JSON).
+  * Erro do provedor é normalizado em `runner_unavailable` (5xx) ou `runner_contract_mismatch` (HTML/inválido).
+* **Integração** (em `OcabBridge.IntegrationTests`):
+  * `RunQueueWorker` consome Run com `status = Pending` da fila persistente.
+  * Estado é persistido em Postgres (`runs.status`) e sobrevive a restart do bridge.
+  * `WaitForTerminalAsync` retorna o estado terminal após transição.
+  * Restart/reconciliação não deixa Run indefinido em `Running` (worker retoma execuções órfãs).
+  * `CancelAsync` chega à execução ativa via `CancellationTokenSource` registrado.
+* **E2E real** (em `OcabBridge.IntegrationTests`, fixture determinística):
+  * Prompt read-only termina em `Completed` com resposta persistida.
+  * Cancelamento termina em `Cancelled` com `POST /abort` chamado.
+  * Timeout termina em `TimedOut`.
+  * Erro do provedor termina em `Failed`.
+  * Origem Git permanece intacta (`git rev-parse HEAD` antes/depois).
+  * Nenhum processo fica ativo após os testes.
+
+**Riscos:**
+
+* Provedor LLM determinístico pode divergir de provedores reais (OpenAI/Anthropic) em respostas de streaming. Mitigação: o fixture valida apenas o protocolo HTTP, não a qualidade do modelo; o adapter continua agnóstico ao provider.
+* Restart do bridge durante execução pode deixar Run em `Running` sem owner. Mitigação: o `RunQueueWorker` retoma Runs com `status = Running` que tenham `updated_at` mais antigo que `timeout` (reconciliação).
+* Concorrência entre múltiplos workers (em deploy com réplicas) pode levar a execução duplicada. Mitigação: `TryClaimPendingAsync` usa `SELECT ... FOR UPDATE SKIP LOCKED` (Postgres) para garantir claim atômico.
+
+**Impacto operacional:**
+
+* Bridge passa a depender de `Ocab:OpenCodeProviderUrl` e `Ocab:OpenCodeProviderKey` na configuração; placeholders `__SET_ME__` no `appsettings.json` e `compose.yaml`.
+* `compose.yaml` ganha um novo serviço `ocab-opencode-provider` (imagem base `node:20-alpine` ou similar) com o provedor determinístico; porta exposta para o `ocab-opencode-runner`.
+* Dockerfile do provider adicionado em `poc/opencode-provider/` com fail-fast consistente com o do runner.
+* Postgres ganha coluna `timeout_seconds` (default 300) na tabela `runs` (migration `V006__add_run_timeout.sql`).
+
+**Impacto de segurança:**
+
+* Provider key é placeholder `__SET_ME__` real lido de env var; nunca commitada.
+* Sem Docker socket; sem bind-mount; sem `privileged`; capabilities zeradas no provider (mesmo padrão do runner).
+* Logs do provider passam por redaction.
+
+**Critérios para revisitar:**
+
+* Adoção de `LISTEN/NOTIFY` do Postgres para eliminar o poll loop (atualmente 500 ms).
+* Substituição do `TaskCompletionSource` em memória por Redis ou stream distribuído se o bridge rodar em múltiplas réplicas.
+
+**Documentação afetada:** este backlog, `docs/adr/0018-persistent-run-queue.md`, `docs/discovery/014-deterministic-e2e-lifecycle.md`, `docs/specs/003-run-lifecycle/spec.md`, `docs/specs/005-opencode-runner/spec.md`, `docs/testing/integration-tests.md`, `docs/testing/acceptance-tests.md`, `db/migrations/V006__add_run_timeout.sql`, `poc/opencode-provider/Dockerfile`, `compose.yaml`, `src/OcabBridge.Api/Application/IRunExecutionCoordinator.cs` (novo), `src/OcabBridge.Api/Application/RunExecutionCoordinator.cs` (novo), `src/OcabBridge.Api/Application/RunQueueWorker.cs` (novo), `src/OcabBridge.Api/Application/RunDispatcher.cs` (refactor), `src/OcabBridge.Api/Domain/Run.cs` (novo campo `TimeoutSeconds`), `src/OcabBridge.Api/Infrastructure/Persistence/RunRepository.cs` (novos métodos).
+
 ## EPIC 2 — MVP Workspace-Write
 
 ### Capability 2.1 — Workspace isolado
