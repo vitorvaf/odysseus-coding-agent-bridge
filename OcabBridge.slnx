@@ -4,4 +4,5 @@
   <Project Path="tests/OcabBridge.IntegrationTests/OcabBridge.IntegrationTests.csproj" />
   <Project Path="tests/OcabBridge.ContractTests/OcabBridge.ContractTests.csproj" />
   <Project Path="tests/OcabBridge.SecurityTests/OcabBridge.SecurityTests.csproj" />
+  <Project Path="tests/OcabBridge.TestSupport/OcabBridge.TestSupport.csproj" />
 </Solution>

@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\OcabBridge.Api\OcabBridge.Api.csproj" />
+    <ProjectReference Include="..\OcabBridge.TestSupport\OcabBridge.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>

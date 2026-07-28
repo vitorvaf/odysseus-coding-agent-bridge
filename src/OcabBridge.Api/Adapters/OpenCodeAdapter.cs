@@ -171,9 +171,11 @@ public sealed class OpenCodeAdapter : IRunnerAdapter
 
     private async Task EnsureSuccessAsync(HttpResponseMessage resp, string operation, CancellationToken ct)
     {
-        if (resp.IsSuccessStatusCode) return;
-
         var ctHeader = resp.Content.Headers.ContentType?.MediaType;
+
+        // Contract drift: HTML response where JSON was expected. Detected
+        // first so we surface the drift regardless of HTTP status (the
+        // server sometimes returns 200 OK with HTML for SPA fallbacks).
         if (string.Equals(ctHeader, MediaHtml, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogError(
@@ -186,12 +188,34 @@ public sealed class OpenCodeAdapter : IRunnerAdapter
                 "OpenCode returned HTML instead of JSON");
         }
 
-        var code = NormalizeErrorCode(resp.StatusCode);
-        var detail = await SafeReadErrorBodyAsync(resp, ct);
-        _logger.LogError(
-            "OpenCode {Op} failed status={Status} code={Code} detail={Detail}",
-            operation, resp.StatusCode, code, detail);
-        throw new RunnerAdapterException(code, operation, resp.StatusCode, detail);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var code = NormalizeErrorCode(resp.StatusCode);
+            var detail = await SafeReadErrorBodyAsync(resp, ct);
+            _logger.LogError(
+                "OpenCode {Op} failed status={Status} code={Code} detail={Detail}",
+                operation, resp.StatusCode, code, detail);
+            throw new RunnerAdapterException(code, operation, resp.StatusCode, detail);
+        }
+
+        // Validate Content-Type on success too: 2xx with non-JSON,
+        // non-SSE Content-Type is contract drift (the SPA fallback can
+        // come back as 200 OK + text/html when the upstream served a
+        // stale route). Allow application/json (response body) and
+        // text/event-stream (SSE for /event) but reject anything else.
+        if (!string.IsNullOrEmpty(ctHeader)
+            && !string.Equals(ctHeader, MediaJson, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(ctHeader, "text/event-stream", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogError(
+                "OpenCode contract drift on {Op}: returned {ContentType} status={Status}",
+                operation, ctHeader, resp.StatusCode);
+            throw new RunnerContractMismatchException(
+                operation,
+                resp.StatusCode,
+                ctHeader,
+                $"OpenCode returned unexpected Content-Type {ctHeader}");
+        }
     }
 
     private static string NormalizeErrorCode(HttpStatusCode status) => (int)status switch

@@ -1,7 +1,0 @@
-namespace OcabBridge.ContractTests;
-
-public sealed class PlaceholderTests
-{
-    [Fact]
-    public void ProjectCompiles() => true.Should().BeTrue();
-}
