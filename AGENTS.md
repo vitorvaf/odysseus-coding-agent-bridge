@@ -32,6 +32,8 @@ docs/README.md
 docs/project/vision.md
 docs/project/scope.md
 docs/architecture/system-design.md
+docs/discovery/README.md
+docs/discovery/phase-0-report.md (quando existir)
 docs/planning/roadmap.md
 docs/planning/backlog.md
 spec da tarefa atribuída
@@ -82,14 +84,16 @@ flowchart TD
     B --> C[Verificar questões em aberto]
     C --> D[Plano de execução]
     D --> E{Envolve UI/UX?}
-    E -- Sim --> F[Despachar para designer]
-    E -- Não --> G{Envolve decisões arquiteturais?}
-    G -- Sim --> H[Despachar para oracle]
+    E -- Sim --> F[Registrar necessidade de design<br/>e abrir issue]
+    E -- Não --> G{Envolve decisão arquitetural<br/>ou quebra de premissa?}
+    G -- Sim --> H[Criar ou revisar ADR]
     G -- Não --> I[Executar tarefa]
     I --> J[Atualizar documentação]
     J --> K[Registrar validações]
     K --> L[Encerrar]
 ```
+
+> Este fluxo **não** depende de agentes internos específicos (como "designer" ou "oráculo"). Toda revisão arquitetural deve produzir uma ADR ou atualizar uma existente. Toda necessidade de design deve ser registrada como issue ou entrada em `docs/open-questions.md`, sem despacho para agentes não definidos nesta especificação.
 
 ## Verificações antes de encerrar
 

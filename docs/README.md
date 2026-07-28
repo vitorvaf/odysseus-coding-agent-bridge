@@ -2,6 +2,34 @@
 
 Documentação do Odysseus Coding Agent Bridge (OCAB). Cada documento abaixo está vinculado a uma das áreas do projeto.
 
+## Estado de entrega
+
+Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planning/milestones.md`](planning/milestones.md).
+
+| Fase | Status | Evidência |
+| --- | --- | --- |
+| Fase 0 — Discovery | **Concluída** | [`discovery/phase-0-report.md`](discovery/phase-0-report.md); commits `62e9bcf`, `95d8f04` |
+| Fase 1 — MVP Read-Only Vertical Slice | **Concluída** | smoke test contra stack real; commits `f6ded6e`, `ff26974`, `d65fc5c`, `da4c3b7`, `95d8f04` |
+| Fase 2 — Workspace Write (slice 2.1+) | Pendente | bloqueia em `specs/007-workspace-isolation` + `003-run-lifecycle` diferidos |
+| Fase 8 — Codex Runner | Pendente | pós-MVP (ADR-0010) |
+| Fase 9 — Antigravity | Pendente | pós-MVP (ADR-0011) |
+
+### Slices Phase 1 entregues
+
+| Slice | Commit | Conteúdo verificado |
+| --- | --- | --- |
+| 1.1.1 — Foundation | `f6ded6e` | bridge ASP.NET 8 + health + bearer auth + runs |
+| 1.1.2 — Repository Registry | `ff26974` | `repositories` table + `repositories_list` + slug validation |
+| 1.1.3 — OpenCode Read-Only VS | `d65fc5c` | adapter + dispatcher + MCP + runner container |
+| 1.1.4 — MCP Contract Completion | `da4c3b7` | `agents_list`, `run_diff`, `review_create`, idempotência, paginação, `X-OCAB-Contract-Version`, `X-OCAB-Trace-Id` |
+| fix(phase1): review fixes | `95d8f04` | correções de Dapper + Dockerfile + Postgres entrypoint |
+
+### Diferido / pendente
+
+* **spec 003 — máquina de estados**: shippamos 7 dos 14 estados (`Pending`, `Running`, `Completed`, `Cancelling`, `Cancelled`, `Failed`, `TimedOut`). Os 7 restantes (`ValidatingRequest`, `PreparingWorkspace`, `ValidatingResult`, `ReviewRequired`, `CompletedWithValidationErrors`, `ChangesRequested`, `Rejected`) entram em Phase 2/3.
+* **OpenCode Runner (binário real)**: o build do container em `poc/opencode-container/` testou primitivos de hardening, mas a imagem oficial `ghcr.io/sst/opencode` retornou `denied` neste ambiente. O `Dockerfile` tem fallback documentado (instalador oficial + bind-mount do binário do host). Validação ponta-a-ponta fica para ambiente com acesso ao registry.
+* **OQ-100 — LICENSE**: `LICENSE` permanece untracked aguardando confirmação do sponsor (Apache-2.0 assumido em iteração anterior sem autorização).
+
 ## Mapa
 
 ### Projeto
@@ -95,6 +123,20 @@ Documentação do Odysseus Coding Agent Bridge (OCAB). Cada documento abaixo est
 ### Diagramas
 * [`diagrams/README.md`](diagrams/README.md) — índice de diagramas.
 
+### Discovery (Fase 0)
+* [`discovery/README.md`](discovery/README.md) — índice da Fase 0.
+* [`discovery/001-environment-baseline.md`](discovery/001-environment-baseline.md)
+* [`discovery/002-mcp-sdk-evaluation.md`](discovery/002-mcp-sdk-evaluation.md)
+* [`discovery/003-opencode-container-poc.md`](discovery/003-opencode-container-poc.md)
+* [`discovery/004-repository-pilot-selection.md`](discovery/004-repository-pilot-selection.md)
+* [`discovery/005-workspace-strategy-evaluation.md`](discovery/005-workspace-strategy-evaluation.md)
+* [`discovery/006-authentication-and-networking.md`](discovery/006-authentication-and-networking.md)
+* [`discovery/007-process-execution-evaluation.md`](discovery/007-process-execution-evaluation.md)
+* [`discovery/008-resource-limits-baseline.md`](discovery/008-resource-limits-baseline.md)
+* [`discovery/009-security-discovery.md`](discovery/009-security-discovery.md)
+* [`discovery/010-discovery-decisions.md`](discovery/010-discovery-decisions.md)
+* [`discovery/phase-0-report.md`](discovery/phase-0-report.md)
+
 ### Globais
 * [`open-questions.md`](open-questions.md) — questões em aberto.
 * [`glossary.md`](glossary.md) — glossário.
@@ -107,6 +149,7 @@ Documentação do Odysseus Coding Agent Bridge (OCAB). Cada documento abaixo est
 | O problema e a visão | `project/vision.md`, `README.md` |
 | O escopo do MVP | `project/scope.md`, `planning/roadmap.md` |
 | As decisões tomadas | `adr/README.md` |
+| O que está pendente para começar | `discovery/README.md`, `discovery/phase-0-report.md` |
 | Como o sistema é estruturado | `architecture/system-design.md`, `architecture/container-architecture.md` |
 | Como uma execução acontece | `specs/003-run-lifecycle/spec.md`, `contracts/mcp-tools.md` |
 | Como os repositórios são protegidos | `specs/002-repository-registry/spec.md`, `specs/007-workspace-isolation/spec.md`, `security/threat-model.md` |
@@ -114,3 +157,4 @@ Documentação do Odysseus Coding Agent Bridge (OCAB). Cada documento abaixo est
 | Como a observabilidade é feita | `architecture/observability-architecture.md`, `specs/010-observability/spec.md` |
 | Como operar o sistema | `specs/014-operations/spec.md`, `operations/deployment.md` |
 | O que precisa ser feito | `planning/backlog.md`, `planning/roadmap.md` |
+| Questões ainda abertas | `open-questions.md` |

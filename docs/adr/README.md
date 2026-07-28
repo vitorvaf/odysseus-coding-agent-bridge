@@ -54,6 +54,7 @@ Accepted
 | [0012](0012-filesystem-artifact-storage.md) | Artefatos no filesystem | Accepted |
 | [0013](0013-private-docker-network.md) | Rede Docker privada | Accepted |
 | [0014](0014-repository-slug-registry.md) | Repositórios identificados por slug | Accepted |
+| [0015](0015-runtime-version.md) | .NET 8 LTS como runtime alvo | Accepted |
 
 ## Como propor nova ADR
 

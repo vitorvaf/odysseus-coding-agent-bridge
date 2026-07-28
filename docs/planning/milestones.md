@@ -6,10 +6,22 @@ Define marcos do projeto.
 
 ## M0 — Especificação aceita
 
-* 14 ADRs publicados.
+* 14 ADRs publicadas.
 * 14 specs publicadas.
+* 7 discovery reports estruturados.
 * Roadmap, backlog e risk register prontos.
 * Diagramas revisados.
+* Questões em aberto classificadas.
+
+## M0.1 — Discovery concluído
+
+* Fase 0 concluída.
+* [`../docs/discovery/phase-0-report.md`](../docs/discovery/phase-0-report.md) publicado.
+* Gate da Fase 1 fechado.
+* ADRs atualizadas conforme resultados.
+* Repositório piloto cadastrado.
+
+> **Nenhuma implementação de produção pode iniciar antes deste marco.**
 
 ## M1 — Foundation pronta
 
@@ -21,8 +33,9 @@ Define marcos do projeto.
 ## M2 — Vertical read-only com OpenCode
 
 * Fases 2, 3 e 4 concluídas.
-* Execução read-only via MCP com OpenCode.
-* Relatório simplificado.
+* Execução read-only via MCP com OpenCode (contrato mínimo).
+* Ferramentas MCP completas com autenticação, paginação e idempotência.
+* Relatório padronizado.
 
 ## M3 — Workspace Write com validação
 
@@ -59,3 +72,4 @@ Cada marco deve ter:
 * [`roadmap.md`](roadmap.md)
 * [`backlog.md`](backlog.md)
 * [`definition-of-done.md`](definition-of-done.md)
+* [`../docs/discovery/phase-0-report.md`](../docs/discovery/phase-0-report.md)

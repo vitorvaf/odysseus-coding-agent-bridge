@@ -159,9 +159,14 @@ Como integrar o OpenCode Server de forma isolada, cancelável, observável e com
 
 ## Questões em aberto
 
-* Autenticação interna exata.
-* Política de retries em falhas transitórias.
+* Autenticação interna exata (OQ-091) — parcialmente resolvida em [`../discovery/006-authentication-and-networking.md`](../discovery/006-authentication-and-networking.md).
+* Política de retries em falhas transitórias (OQ-024).
 * Mapeamento exato de eventos OpenCode para `RunEvent`.
+
+## Referências complementares
+
+* [`../discovery/003-opencode-container-poc.md`](../discovery/003-opencode-container-poc.md) — POC de hardening de container.
+* [`../discovery/004-repository-pilot-selection.md`](../discovery/004-repository-pilot-selection.md) — repositório piloto usado pela primeira fatia vertical.
 
 ## Fora de escopo
 

@@ -178,10 +178,10 @@ A escolha entre `clone`, `worktree` e `copy` depende de fatores como tamanho do 
 
 ## Questões em aberto
 
-* Estratégia padrão de clone vs worktree.
-* Política para submodules.
-* Política para Git LFS.
-* Política para repositórios com alterações locais.
+* Estratégia padrão de clone vs worktree — resolvida em [`../discovery/005-workspace-strategy-evaluation.md`](../discovery/005-workspace-strategy-evaluation.md): primária `git worktree add`; sem workspace para read-only.
+* Política para submodules (OQ-012).
+* Política para Git LFS (OQ-013).
+* Política para repositórios com alterações locais (OQ-014).
 
 ## Fora de escopo
 

@@ -146,7 +146,8 @@ sequenceDiagram
 | Item | Estado |
 | --- | --- |
 | Especificação | Em construção |
-| Decisões arquiteturais | 14 ADRs propostos |
+| Decisões arquiteturais | 14 ADRs aceitos |
+| Discovery técnico | Planejado (Fase 0) |
 | MVP vertical read-only | Planejado (Fase 3) |
 | Execução de escrita | Planejado (Fase 5) |
 | Codex Runner | Pós-MVP (Fase 8) |

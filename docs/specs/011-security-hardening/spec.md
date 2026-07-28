@@ -167,6 +167,12 @@ Ver [`../security/trust-boundaries.md`](../security/trust-boundaries.md).
 * Ferramenta de pentest.
 * Política de rotação de credenciais.
 
+## Referências complementares
+
+* [`../discovery/009-security-discovery.md`](../discovery/009-security-discovery.md) — ameaças, testes e checklist CI.
+* [`../discovery/008-resource-limits-baseline.md`](../discovery/008-resource-limits-baseline.md) — limites de recursos aplicados ao hardening.
+* [`../discovery/006-authentication-and-networking.md`](../discovery/006-authentication-and-networking.md) — esquema de autenticação e topologia de rede.
+
 ## Fora de escopo
 
 * WAF.

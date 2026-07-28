@@ -1,0 +1,24 @@
+.git/
+.gitignore
+bin/
+obj/
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userprefs
+*.log
+
+# secrets
+.env
+.env.*
+secrets/ocab_mcp_token
+secrets/*.pem
+
+# docs not needed at build time
+docs/
+
+# Root config that's irrelevant to the bridge image
+README.md
+LICENSE
