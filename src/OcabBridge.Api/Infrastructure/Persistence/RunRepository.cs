@@ -50,4 +50,20 @@ WHERE run_id = @RunId";
         return await conn.QuerySingleOrDefaultAsync<Run>(
             new CommandDefinition(sql, new { RunId = runId }, cancellationToken: ct));
     }
+
+    // Slice 1.1.3 (OpenCode Read-Only VS): the dispatcher transitions
+    // the Run.status as the runner reports events. Concurrency model:
+    // single in-flight transition per run, recorded in run_events.
+    public async Task UpdateStatusAsync(Guid runId, string status, CancellationToken ct)
+    {
+        const string sql = @"
+UPDATE runs
+SET status = @Status
+WHERE run_id = @RunId";
+        await using var conn = _factory.Create();
+        await conn.ExecuteAsync(new CommandDefinition(
+            sql,
+            new { RunId = runId, Status = status },
+            cancellationToken: ct));
+    }
 }

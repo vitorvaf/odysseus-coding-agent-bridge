@@ -75,6 +75,40 @@ services:
       timeout: 2s
       retries: 5
 
+  ocab-opencode-runner:
+    image: ocab-opencode-runner:dev
+    build:
+      context: ./poc/opencode-container
+      dockerfile: Dockerfile
+    container_name: ocab-opencode-runner
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+      - /home/ocab/.cache:size=64m
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    networks:
+      - ocab-net
+    expose:
+      - "4096"
+    environment:
+      OPENCODE_HOST: "0.0.0.0"
+      OPENCODE_PORT: "4096"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+          pids: 512
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:4096/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
 networks:
   ocab-net:
     driver: bridge
