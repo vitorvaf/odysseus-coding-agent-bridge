@@ -35,6 +35,25 @@ FROM repositories";
         return rows.ToList();
     }
 
+    // Slice 1.1.4 — paginated list. Offset/limit applied at SQL level so
+    // the cursor in MCP tools stays bounded regardless of table size.
+    public async Task<IReadOnlyList<Repository>> ListAsync(int offset, int limit, CancellationToken ct)
+    {
+        var sql = Projection + "\nORDER BY slug OFFSET @Offset LIMIT @Limit";
+        await using var conn = _factory.Create();
+        var rows = await conn.QueryAsync<Repository>(
+            new CommandDefinition(sql, new { Offset = offset, Limit = limit }, cancellationToken: ct));
+        return rows.ToList();
+    }
+
+    public async Task<int> CountAsync(CancellationToken ct)
+    {
+        const string sql = "SELECT COUNT(*) FROM repositories";
+        await using var conn = _factory.Create();
+        return await conn.ExecuteScalarAsync<int>(
+            new CommandDefinition(sql, cancellationToken: ct));
+    }
+
     public async Task<Repository?> GetBySlugAsync(string slug, CancellationToken ct)
     {
         var sql = Projection + "\nWHERE slug = @Slug";

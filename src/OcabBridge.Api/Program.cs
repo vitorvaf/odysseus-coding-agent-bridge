@@ -5,16 +5,17 @@ using OcabBridge.Api.Configuration;
 using OcabBridge.Api.Endpoints;
 using OcabBridge.Api.Infrastructure.Auth;
 using OcabBridge.Api.Infrastructure.Persistence;
+using OcabBridge.Api.Mcp;
 using Prometheus;
 
-// Composition root for the OCAB Coding Agent Bridge (slice 1.1.3).
+// Composition root for the OCAB Coding Agent Bridge (slice 1.1.4).
 // See:
 //  - docs/specs/001-platform-foundation/spec.md
-//  - docs/specs/005-opencode-runner/spec.md
 //  - docs/specs/004-mcp-contract/spec.md
+//  - docs/specs/005-opencode-runner/spec.md
 //  - docs/discovery/002-mcp-sdk-evaluation.md
-//  - docs/discovery/006-authentication-and-networking.md (Bearer token topology)
-//  - docs/discovery/008-resource-limits-baseline.md (resource caps)
+//  - docs/discovery/006-authentication-and-networking.md
+//  - docs/discovery/008-resource-limits-baseline.md
 //  - docs/adr/0015-runtime-version.md (.NET 8 LTS)
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +40,8 @@ builder.Services.AddSingleton<NpgsqlConnectionFactory>();
 builder.Services.AddSingleton<RunRepository>();
 builder.Services.AddSingleton<RunEventRepository>();
 builder.Services.AddSingleton<RepositoryRepository>();
+builder.Services.AddSingleton<AgentRepository>();
+builder.Services.AddSingleton<IdempotencyRepository>();
 
 // Runner adapter (slice 1.1.3). HttpClient is configured via
 // AddHttpClient<TClient> so the OpenCode base URL is sourced from
@@ -56,7 +59,7 @@ builder.Services.AddSingleton<IRunnerAdapter>(sp => sp.GetRequiredService<OpenCo
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<RunDispatcher>();
 
-// MCP server (slice 1.1.3 contract). Tool types registered via
+// MCP server (slice 1.1.4 contract). Tool types registered via
 // WithToolsFromAssembly scan — the OcabMcpTools class carries the
 // [McpServerToolType] attribute.
 builder.Services
@@ -69,8 +72,14 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Bearer token middleware is registered BEFORE endpoint mapping so it
-// gates /v1/runs and /mcp while keeping /health, /ready, /metrics open.
+// Middleware pipeline (slice 1.1.4):
+//   1. Correlation: trace id propagation; emits X-OCAB-Trace-Id.
+//   2. ContractVersion: emits X-OCAB-Contract-Version: v1.
+//   3. BearerToken: gates /v1/runs and /mcp; /health, /ready, /metrics
+//      remain anonymous so external scrapers (Compose healthcheck,
+//      Prometheus) can reach them.
+app.UseMiddleware<CorrelationMiddleware>();
+app.UseMiddleware<ContractVersionMiddleware>();
 app.UseMiddleware<BearerTokenMiddleware>();
 
 // Liveness — always 200 if the process is up.
