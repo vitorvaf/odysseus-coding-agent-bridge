@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed (atualizada em 2026-07-28 pela `SLICE-STAB-002` para refletir o OpenAPI fixado em `v1.18.8` — ver [ADR-0017](../adr/0017-pin-opencode-version.md) e [Discovery 012](../discovery/012-opencode-contract-spike.md)). Promover para `Accepted` após smoke test ponta a ponta verde.
+Proposed (atualizada em 2026-07-28 pelas `SLICE-STAB-002` para refletir o OpenAPI fixado em `v1.18.8` — ver [ADR-0017](../adr/0017-pin-opencode-version.md) e [Discovery 012](../discovery/012-opencode-contract-spike.md); e novamente pela `SLICE-STAB-003` para incluir o caminho de provider customizado determinístico — ver [ADR-0018](../adr/0018-persistent-run-queue.md) e [Discovery 014](../discovery/014-deterministic-e2e-lifecycle.md)). Promover para `Accepted` após smoke test ponta a ponta verde com provedor determinístico.
 
 ## Resumo
 
@@ -10,7 +10,7 @@ Define a integração entre o Coding Agent Bridge e o OpenCode Server, incluindo
 
 ## Contexto
 
-O OpenCode é o primeiro runner do MVP. Sua API HTTP precisa ser encapsulada por um adapter que implementa `IRunnerAdapter`. A versão alvo é `v1.18.8` (fixada em [ADR-0017](../adr/0017-pin-opencode-version.md)) e o contrato efetivo é o OpenAPI 3.1.0 publicado em runtime pelo servidor em `GET /doc`, capturado em [Discovery 012](../discovery/012-opencode-contract-spike.md).
+O OpenCode é o primeiro runner do MVP. Sua API HTTP precisa ser encapsulada por um adapter que implementa `IRunnerAdapter`. A versão alvo é `v1.18.8` (fixada em [ADR-0017](../adr/0017-pin-opencode-version.md)) e o contrato efetivo é o OpenAPI 3.1.0 publicado em runtime pelo servidor em `GET /doc`, capturado em [Discovery 012](../discovery/012-opencode-contract-spike.md). A `SLICE-STAB-003` complementa este contexto com um **provider LLM determinístico** que permite validar o ciclo completo read-only (`Pending → Running → Completed`) end-to-end sem depender de credenciais de provedor pago; ver [Discovery 014](../discovery/014-deterministic-e2e-lifecycle.md) e [ADR-0018 § Provider determinístico](../adr/0018-persistent-run-queue.md#decisão).
 
 ## Problema
 
@@ -157,6 +157,7 @@ Como integrar o OpenCode Server de forma isolada, cancelável, observável, pina
 * **OCR-AC-009** A versão upstream e o checksum do contrato são registrados em cada `Run` (campos `UpstreamVersion` e `ContractChecksum`).
 * **OCR-AC-010** 401 (sem Basic Auth ou senha incorreta) é normalizado para `runner_auth_failed`; 404 (`session_not_found`), 409 (`session_conflict`), 429 (`runner_rate_limited`) e 5xx (`runner_unavailable`) são normalizados analogamente.
 * **OCR-AC-011** Smoke test ponta a ponta (cliente MCP → `run_create` → bridge → OpenCode → sessão real → prompt read-only → eventos → relatório; também `run_cancel`, timeout, runner indisponível, credencial inválida, resposta incompatível) é executado e a evidência é publicada em `docs/discovery/013-...`.
+* **OCR-AC-012** Provider customizado determinístico (compatível com OpenAI `/v1/chat/completions`) é configurado via `opencode.json` em `provider.custom.<name>.baseURL` apontando para serviço HTTP local; o adapter continua agnóstico ao provider e o ciclo completo read-only (`Pending → Running → Completed` com resposta persistida) é validado sem dependência de credencial paga. O OpenCode real permanece no caminho; apenas a inferência é determinística. Coberto por `tests/OcabBridge.IntegrationTests/EndToEndLifecycleTests` (vide `Discovery 014`).
 
 ## Dependências
 

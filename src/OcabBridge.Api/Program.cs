@@ -70,6 +70,17 @@ builder.Services.AddSingleton<IRunnerAdapter>(sp => sp.GetRequiredService<OpenCo
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<RunDispatcher>();
 
+// SLICE-STAB-003 / ADR-0018: awaitable execution coordination.
+// RunExecutionCoordinator owns the in-memory registry of active runs
+// (CTS + TCS); RunQueueWorker (BackgroundService) consumes the
+// persistent queue (runs table with status='Pending') and dispatches
+// each run via RunDispatcher.ExecuteAsync inside a scope. Replaces the
+// `_ = Task.Run(() => ExecuteAsync(...))` fire-and-forget that slice
+// 1.1.3 left in place.
+builder.Services.AddSingleton<RunExecutionCoordinator>();
+builder.Services.AddSingleton<IRunExecutionCoordinator>(sp => sp.GetRequiredService<RunExecutionCoordinator>());
+builder.Services.AddHostedService<RunQueueWorker>();
+
 // MCP server (slice 1.1.4 contract). Tool types registered via
 // WithToolsFromAssembly scan — the OcabMcpTools class carries the
 // [McpServerToolType] attribute.
