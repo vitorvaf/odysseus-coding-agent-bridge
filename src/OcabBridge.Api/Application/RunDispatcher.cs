@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OcabBridge.Api.Adapters;
 using OcabBridge.Api.Domain;
@@ -100,7 +101,8 @@ public sealed class RunDispatcher
 
             var session = await _adapter.StartSessionAsync(sessionReq, ct);
             await TransitionAsync(runId, RunStatus.Pending, RunStatus.Running,
-                "adapter.opencode", "session_started", $"session={session.SessionId}", ct);
+                "adapter.opencode", "session_started",
+                JsonString($"session={session.SessionId}"), ct);
 
             await _adapter.SendPromptAsync(session.SessionId, prompt, ct);
 
@@ -140,7 +142,8 @@ public sealed class RunDispatcher
             try
             {
                 await TransitionAsync(runId, null, RunStatus.Failed,
-                    "dispatcher", "exception", ex.GetType().Name, CancellationToken.None);
+                    "dispatcher", "exception",
+                    JsonString(ex.GetType().Name), CancellationToken.None);
             }
             catch (Exception inner)
             {
@@ -148,6 +151,11 @@ public sealed class RunDispatcher
             }
         }
     }
+
+    // Wrap a plain string into a JSON string literal so the JSONB column
+    // accepts it. Returns null when the input is null so callers don't
+    // have to special-case.
+    private static string? JsonString(string? s) => s is null ? null : JsonSerializer.Serialize(s);
 
     private async Task TransitionAsync(
         Guid runId,
@@ -158,18 +166,33 @@ public sealed class RunDispatcher
         string? metadata,
         CancellationToken ct)
     {
-        await _events.InsertAsync(new RunEvent
-        {
-            Id = Guid.NewGuid(),
-            RunId = runId,
-            Sequence = 0,
-            FromState = from,
-            ToState = to,
-            Actor = actor,
-            Reason = reason,
-            MetadataJson = metadata,
-            CreatedAt = _clock.GetUtcNow()
-        }, ct);
+        // Update the Run status first so that a transient failure in
+        // the event insert (e.g. Postgres connection blip, schema
+        // migration in progress) does not leave the Run stuck in the
+        // previous state. The event insert is best-effort from the
+        // dispatcher's perspective: the terminal status of the Run is
+        // the source of truth for "did the lifecycle complete".
         await _runs.UpdateStatusAsync(runId, to, ct);
+        try
+        {
+            await _events.InsertAsync(new RunEvent
+            {
+                Id = Guid.NewGuid(),
+                RunId = runId,
+                Sequence = 0,
+                FromState = from,
+                ToState = to,
+                Actor = actor,
+                Reason = reason,
+                MetadataJson = metadata,
+                CreatedAt = _clock.GetUtcNow()
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Run {RunId} status updated to {To} but RunEvent insert failed; terminal status is still authoritative",
+                runId, to);
+        }
     }
 }

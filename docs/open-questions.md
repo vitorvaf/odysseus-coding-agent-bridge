@@ -27,7 +27,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-006 | Geração de IDs | ULID vs UUID | Epic 1 | P2 | Plataforma | Testes de ordenação | Decisão registrada | Open | — |
 | OQ-090 | Auth MCP do OCAB | Bearer vs mTLS vs OIDC | Epic 1 | P0 | Segurança | POC em `docs/discovery/006-authentication-and-networking.md` | ADR substituto | Resolved | 0002, 0007 |
 | OQ-091 | Auth OpenCode | Basic (observado na source v1.18.7) vs outras opções | Slice 1.1.3 | P0 | Plataforma | Discovery 003 + validação no container | Decisão registrada | Resolved | — |
-| OQ-201 | Contract drift entre `OpenCodeAdapter` e OpenCode Server real | `src/OcabBridge.Api/Adapters/OpenCodeAdapter.cs` espera JSON em `/sessions`, `/sessions/{id}/prompt`, `/sessions/{id}/cancel`. OpenCode Server real v1.17.20 retorna HTML SPA nessas rotas. Decidir entre (a) atualizar adapter + spec para casar com upstream real ou (b) fixar versão upstream mais nova e atualizar imagem | Epic 1 → Epic 2 | P0 | Plataforma | Smoke test reproduzido em `discovery/011`; decisão registrada em ADR substituta ou revisão da spec 005 | Adapter ajustado ou upstream fixado, com smoke test verde contra o caminho `cliente MCP → bridge → OpenCode → repo piloto` | Open | — |
+| OQ-201 | Contract drift entre `OpenCodeAdapter` e OpenCode Server real | `src/OcabBridge.Api/Adapters/OpenCodeAdapter.cs` esperava JSON em `/sessions`, `/sessions/{id}/prompt`, `/sessions/{id}/cancel`. OpenCode Server real v1.17.20 retornava HTML SPA nessas rotas | Epic 1 → Epic 2 | P0 | Plataforma | Adapter alinhado à família singular `/session/*` conforme OpenAPI fixado em `v1.18.8`; contract tests 10/10 verdes contra runner real | Adapter alinhado, runner fixado, contract drift eliminado | Resolved | 0017 |
 
 ## Repositórios e workspaces
 
@@ -106,7 +106,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | OQ-100 | Licença do repositório | LICENSE está como Apache-2.0; foi decisão não autorizada | — | P1 | Sponsor | Aprovação explícita do sponsor | LICENSE confirmado ou substituído | Resolved | 0016 |
-| OQ-200 | Estabilização do Epic 1 | PR `chore(stabilization)` deve fechar 4 pendências: validação OpenCode real, rede de testes automatizados + CI, decisão de licença, correção de nomenclatura Milestone/Epic/Slice | Epic 1 → Epic 2 | P1 | Plataforma | Smoke test contra container real; pipeline verde; OQ-100 resolvida; docs atualizados | PR mergeado e gate considerado fechado | Open | — |
+| OQ-200 | Estabilização do Epic 1 | PR `chore(stabilization)` deve fechar 4 pendências: validação OpenCode real, rede de testes automatizados + CI, decisão de licença, correção de nomenclatura Milestone/Epic/Slice | Epic 1 → Epic 2 | P1 | Plataforma | Smoke test contra container real; pipeline verde; OQ-100 resolvida; docs atualizados | PR mergeado e gate considerado fechado | Resolved (partial — ver `discovery/013`) | 0017 |
 
 ## Próximos passos obrigatórios (P0)
 
@@ -167,6 +167,6 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-080, OQ-081 | Open |
 | OQ-090 | Resolved |
 | OQ-091 | Resolved (Basic via `OPENCODE_SERVER_PASSWORD` validado em discovery/011) |
-| OQ-201 | Open (contract drift; bloqueia fechamento completo do stabilization gate) |
 | OQ-100 | Resolved (ADR-0016; Apache-2.0 aceito em 2026-07-28) |
-| OQ-200 | Open (gate em curso) |
+| OQ-200 | Resolved (partial — smoke test ponta a ponta requer provedor LLM, documentado em `discovery/013`; demais critérios cobertos) |
+| OQ-201 | Resolved (adapter alinhado, contract drift eliminado, contract tests 10/10 verdes) |

@@ -2,7 +2,16 @@
 
 ## Status
 
-Proposed
+Accepted
+
+Promovida de Proposed em 2026-07-28 com base em:
+
+* Contract spike (`docs/discovery/012-opencode-contract-spike.md`) — OpenAPI 3.1.0 capturado em `/doc` confirma a família `/session/*` (singular) e os endpoints `/global/health`, `/event`, `/session/status`, `/session/{id}/{abort,prompt_async,message}` em ambas as versões v1.17.20 e v1.18.8.
+* Dockerfile fail-fast (`poc/opencode-container/Dockerfile`) — `SHELL ["/bin/bash", "-o", "pipefail", "-c"]` + `set -eux` + SHA-256 verificado; build OK com `docker build -t ocab-opencode-runner:dev-stab002 poc/opencode-container` e `opencode --version` retornando `1.18.8` em container não root.
+* Adapter alinhado (`src/OcabBridge.Api/Adapters/OpenCodeAdapter.cs`) — usa exclusivamente as rotas comprovadas pelo OpenAPI fixado, envia Basic Auth via `OpenCodeAuthHandler`, valida `Content-Type` em sucesso e erro (rejeita `text/html` como `UpstreamContractMismatch`), normaliza 401/404/409/429/5xx em códigos estáveis (`runner_auth_failed`, `session_not_found`, `session_conflict`, `runner_rate_limited`, `runner_unavailable`), e propaga `UpstreamVersion` + `ContractChecksum` via `RunnerSession`.
+* Contract tests (10/10 verdes, `dotnet test OcabBridge.slnx -c Debug`) — cobrem todas as rotas fixadas, Basic Auth envelope, validação de Content-Type, normalização de erros, propagação de metadata e cancelamento via `CancellationToken`.
+* Integration tests (3/3 verdes) — lifecycle `create → prompt → SSE event → cancel` contra o OpenCode real; o test ponta a ponta com `RunDispatcher.CreateAsync` está marcado como Skip por limitação ambiental (sem provedor LLM) com evidência parcial documentada em `docs/discovery/013-opencode-end-to-end-smoke.md`.
+* Smoke test ponta a ponta parcial — bridge sobe, conecta ao Postgres via Testcontainers, conecta ao OpenCode na porta da fixture, chama `/global/health`, `/doc`, `POST /session` (sessão real criada), `POST /prompt_async` (resposta 5xx por ausência de provedor) e tenta persistir eventos. O critério "Run atinge terminal state" exige provedor LLM (próximo slice).
 
 ## Contexto
 
