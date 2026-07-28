@@ -9,9 +9,15 @@ namespace OcabBridge.Api.Domain;
 // the same `key` and the same `request_hash` returns the stored `RunId`;
 // a repeat with the same `key` but a different `request_hash` raises
 // 409 idempotency_conflict per docs/specs/004-mcp-contract/spec.md.
-public sealed record IdempotencyRecord(
-    string Key,
-    string RequestHash,
-    Guid RunId,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset ExpiresAt);
+//
+// POCO with public settable properties and no constructor — see the
+// rationale on Domain/Run.cs.
+
+public sealed class IdempotencyRecord
+{
+    public string Key { get; set; } = string.Empty;
+    public string RequestHash { get; set; } = string.Empty;
+    public Guid RunId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+}

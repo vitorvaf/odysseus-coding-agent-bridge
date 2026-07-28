@@ -7,12 +7,18 @@ namespace OcabBridge.Api.Domain;
 // `endpoint` is the runner URL used by IRunnerAdapter implementations.
 // ADR-0014-style identification: agents are referenced by name (slug);
 // no physical paths are accepted.
-public sealed record Agent(
-    Guid Id,
-    string Name,
-    string DisplayName,
-    string Version,
-    bool Enabled,
-    string[] Capabilities,
-    string Endpoint,
-    DateTimeOffset CreatedAt);
+//
+// POCO with public settable properties and no constructor — see the
+// rationale on Domain/Run.cs.
+
+public sealed class Agent
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Version { get; set; } = "0.0.0";
+    public bool Enabled { get; set; } = true;
+    public string[] Capabilities { get; set; } = Array.Empty<string>();
+    public string Endpoint { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+}

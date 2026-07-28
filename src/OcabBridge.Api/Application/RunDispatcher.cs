@@ -55,13 +55,15 @@ public sealed class RunDispatcher
         var repo = await _repos.GetBySlugAsync(repositorySlug, ct)
             ?? throw new InvalidOperationException($"repository_not_found:{repositorySlug}");
 
-        var run = new Run(
-            RunId: Guid.NewGuid(),
-            CreatedAt: _clock.GetUtcNow(),
-            Status: RunStatus.Pending,
-            RepositorySlug: repositorySlug,
-            Prompt: prompt,
-            ResultJson: null);
+        var run = new Run
+        {
+            RunId = Guid.NewGuid(),
+            CreatedAt = _clock.GetUtcNow(),
+            Status = RunStatus.Pending,
+            RepositorySlug = repositorySlug,
+            Prompt = prompt,
+            ResultJson = null
+        };
         await _runs.InsertAsync(run, ct);
         await TransitionAsync(run.RunId, from: null, RunStatus.Pending,
             "bridge", "run_created", null, ct);
@@ -104,16 +106,18 @@ public sealed class RunDispatcher
 
             await foreach (var evt in _adapter.StreamEventsAsync(session.SessionId, ct))
             {
-                await _events.InsertAsync(new RunEvent(
-                    Id: Guid.NewGuid(),
-                    RunId: runId,
-                    Sequence: 0,
-                    FromState: RunStatus.Running,
-                    ToState: RunStatus.Running,
-                    Actor: $"adapter.{_adapter.AgentId}",
-                    Reason: evt.Type,
-                    MetadataJson: evt.Data,
-                    CreatedAt: _clock.GetUtcNow()), ct);
+                await _events.InsertAsync(new RunEvent
+                {
+                    Id = Guid.NewGuid(),
+                    RunId = runId,
+                    Sequence = 0,
+                    FromState = RunStatus.Running,
+                    ToState = RunStatus.Running,
+                    Actor = $"adapter.{_adapter.AgentId}",
+                    Reason = evt.Type,
+                    MetadataJson = evt.Data,
+                    CreatedAt = _clock.GetUtcNow()
+                }, ct);
 
                 if (string.Equals(evt.Type, "done", StringComparison.OrdinalIgnoreCase))
                 {
@@ -154,16 +158,18 @@ public sealed class RunDispatcher
         string? metadata,
         CancellationToken ct)
     {
-        await _events.InsertAsync(new RunEvent(
-            Id: Guid.NewGuid(),
-            RunId: runId,
-            Sequence: 0,
-            FromState: from,
-            ToState: to,
-            Actor: actor,
-            Reason: reason,
-            MetadataJson: metadata,
-            CreatedAt: _clock.GetUtcNow()), ct);
+        await _events.InsertAsync(new RunEvent
+        {
+            Id = Guid.NewGuid(),
+            RunId = runId,
+            Sequence = 0,
+            FromState = from,
+            ToState = to,
+            Actor = actor,
+            Reason = reason,
+            MetadataJson = metadata,
+            CreatedAt = _clock.GetUtcNow()
+        }, ct);
         await _runs.UpdateStatusAsync(runId, to, ct);
     }
 }

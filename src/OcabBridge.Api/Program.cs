@@ -22,6 +22,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddEnvironmentVariables();
 
+// Dapper default: match column `display_name` (lowercased by Postgres
+// because the alias is unquoted) to property `DisplayName`.
+//
+// Setting this once at startup applies to every Dapper materialization
+// in the bridge: Run, Repository, Agent, RunEvent, IdempotencyRecord.
+Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
+
 // Typed options
 builder.Services.Configure<OcabOptions>(builder.Configuration.GetSection(OcabOptions.SectionName));
 

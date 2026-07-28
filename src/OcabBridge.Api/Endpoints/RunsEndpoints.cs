@@ -41,13 +41,15 @@ public static class RunsEndpoints
                 });
             }
 
-            var run = new Run(
-                RunId: Guid.NewGuid(),
-                CreatedAt: DateTimeOffset.UtcNow,
-                Status: "Pending",
-                RepositorySlug: body.RepositorySlug,
-                Prompt: body.Prompt,
-                ResultJson: null);
+            var run = new Run
+            {
+                RunId = Guid.NewGuid(),
+                CreatedAt = DateTimeOffset.UtcNow,
+                Status = "Pending",
+                RepositorySlug = body.RepositorySlug,
+                Prompt = body.Prompt,
+                ResultJson = null
+            };
 
             await runRepo.InsertAsync(run, ct);
 

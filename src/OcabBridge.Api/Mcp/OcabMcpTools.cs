@@ -58,12 +58,12 @@ public sealed class OcabMcpTools
     [McpServerTool(Name = "repositories_list"),
      Description("Returns registered repositories (paginated; opaque cursor).")]
     public async Task<object> RepositoriesListAsync(
-        [Description("Opaque pagination cursor (omit on first page)")] string? cursor,
-        [Description("Page size (default 50, max 200)")] int? limit,
-        CancellationToken ct)
+        [Description("Opaque pagination cursor (omit on first page)")] string cursor = "",
+        [Description("Page size (default 50, max 200)")] int limit = 0,
+        CancellationToken ct = default)
     {
-        var cur = Pagination.Decode(cursor);
-        var pageSize = Math.Clamp(limit ?? DefaultPageSize, 1, MaxPageSize);
+        var cur = string.IsNullOrEmpty(cursor) ? null : Pagination.Decode(cursor);
+        var pageSize = limit > 0 ? Math.Clamp(limit, 1, MaxPageSize) : DefaultPageSize;
         var offset = cur?.Offset ?? 0;
 
         var total = await _repos.CountAsync(ct);
@@ -113,10 +113,10 @@ public sealed class OcabMcpTools
      Description("Creates a Run. Supports 'idempotencyKey' for safe retries.")]
     public async Task<object> RunCreateAsync(
         [Description("Repository slug from repositories_list")] string repositorySlug,
-        [Description("Optional prompt")] string? prompt,
-        [Description("Force read-only mode (default true for slice 1.1.3)")] bool? readOnly,
-        [Description("Optional idempotency key (UUID recommended) for safe retries")] string? idempotencyKey,
-        CancellationToken ct)
+        [Description("Optional prompt")] string prompt = "",
+        [Description("Force read-only mode (default true for slice 1.1.3)")] bool? readOnly = null,
+        [Description("Optional idempotency key (UUID recommended) for safe retries")] string idempotencyKey = "",
+        CancellationToken ct = default)
     {
         var promptStr = prompt ?? string.Empty;
         var promptBytes = Encoding.UTF8.GetByteCount(promptStr);
@@ -161,12 +161,14 @@ public sealed class OcabMcpTools
             if (!string.IsNullOrWhiteSpace(idempotencyKey))
             {
                 var canonicalHash = CanonicalRequestHash(repositorySlug, promptStr, effectiveReadOnly);
-                await _idempotency.InsertAsync(new IdempotencyRecord(
-                    Key: idempotencyKey,
-                    RequestHash: canonicalHash,
-                    RunId: runId,
-                    CreatedAt: _clock.GetUtcNow(),
-                    ExpiresAt: _clock.GetUtcNow().AddHours(24)), ct);
+                await _idempotency.InsertAsync(new IdempotencyRecord
+                {
+                    Key = idempotencyKey,
+                    RequestHash = canonicalHash,
+                    RunId = runId,
+                    CreatedAt = _clock.GetUtcNow(),
+                    ExpiresAt = _clock.GetUtcNow().AddHours(24)
+                }, ct);
             }
 
             return new { runId, status = "Pending", readOnly = effectiveReadOnly };
