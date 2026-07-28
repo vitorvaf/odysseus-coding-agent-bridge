@@ -15,4 +15,8 @@
     <PackageReference Include="xunit" Version="2.9.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OcabBridge.Api\OcabBridge.Api.csproj" />
+  </ItemGroup>
+
 </Project>
