@@ -48,29 +48,46 @@ Roadmap incremental do OCAB dividido em fases.
 
 **Critério de saída:** repositórios cadastrados podem ser listados e usados.
 
-## Fase 3 — OpenCode Read-Only
+## Fase 3 — OpenCode Read-Only Vertical Slice
 
-**Objetivo:** vertical slice read-only com OpenCode.
-
-**Entregáveis:**
-
-* Container OpenCode Runner.
-* Adapter.
-* Sessão, prompt, eventos.
-* Cancelamento e timeout.
-* Relatório simplificado.
-
-**Critério de saída:** execução read-only completa via MCP.
-
-## Fase 4 — MCP Vertical Slice
-
-**Objetivo:** expor todas as ferramentas MCP básicas.
+**Objetivo:** primeira fatia vertical realmente utilizável — execução read-only ponta a ponta via MCP.
 
 **Entregáveis:**
 
-* `repositories_list`, `agents_list`, `run_create`, `run_get`, `run_cancel`, `run_report`.
+* Container OpenCode Runner (PoC).
+* Adapter OpenCode.
+* Sessão, prompt, eventos, cancelamento, timeout.
+* Contrato MCP mínimo necessário para o vertical:
+  * `repositories_list`
+  * `run_create`
+  * `run_get`
+  * `run_cancel`
+  * `run_report`
+* Relatório simplificado no contrato de `run_report`.
+* Repositório original confirmado como não alterado.
 
-**Critério de saída:** cliente MCP consegue fluxo completo read-only.
+**Critério de saída:** um cliente MCP (ou o Odysseus) consegue criar uma execução read-only, acompanhar o estado, cancelar e obter um relatório, com o repositório original intocado.
+
+**Nota:** esta fase entrega o **primeiro produto observável** do OCAB.
+
+## Fase 4 — MCP Contract Completion
+
+**Objetivo:** completar o contrato MCP e endurecer os aspectos transversais.
+
+**Entregáveis:**
+
+* `agents_list`.
+* `run_diff` (modos `summary`, `stat`, `patch`).
+* `review_create`.
+* Paginação padronizada (cursor opaco, `limit` default 50, máximo 200).
+* Erros padronizados (códigos em [`../contracts/errors.md`](../contracts/errors.md)).
+* Autenticação via Bearer token no MCP.
+* Idempotência em `run_create` (com validação de payload divergente).
+* Limites de payload (prompt, diff, payload).
+* Versionamento de contrato (`X-OCAB-Contract-Version`).
+* Headers de correlação (`trace_id`, `run_id`).
+
+**Critério de saída:** todas as ferramentas MCP estão expostas com autenticação, paginação, idempotência, versionamento e limites validados.
 
 ## Fase 5 — Workspace Write
 

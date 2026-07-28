@@ -71,6 +71,7 @@ flowchart LR
 | [ADR-0012](../adr/0012-filesystem-artifact-storage.md) | Artefatos no filesystem | Accepted |
 | [ADR-0013](../adr/0013-private-docker-network.md) | Rede Docker privada | Accepted |
 | [ADR-0014](../adr/0014-repository-slug-registry.md) | Repositórios identificados por slug | Accepted |
+| [ADR-0015](../adr/0015-runtime-version.md) | .NET 8 LTS como runtime alvo | Accepted |
 
 ## Especificações
 

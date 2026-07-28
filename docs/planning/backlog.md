@@ -13,11 +13,134 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 ---
 
+## EPIC 0 — Discovery (Fase 0)
+
+### Capability 0.1 — Discovery técnico
+
+#### Slice 0.1.1 — Environment baseline
+
+**ID:** SLICE-DISCOVERY-001
+
+**Título:** Registrar baseline de ambiente.
+
+**Objetivo:** documentar versões e capacidades do host.
+
+**Motivação:** sem baseline, nenhuma decisão de runtime é segura.
+
+**Dependências:** nenhuma.
+
+**Escopo:**
+
+* OS, kernel, arquitetura.
+* Docker Engine e Compose.
+* Filesystem e capabilities.
+* .NET SDK, Git, utilitários.
+* PostgreSQL alvo.
+* OpenCode e Odysseus disponíveis.
+
+**Fora de escopo:** qualquer decisão de arquitetura.
+
+**Critérios de aceite:**
+
+* [`../docs/discovery/001-environment-baseline.md`](../docs/discovery/001-environment-baseline.md) preenchido.
+* Tabela de versões publicada.
+* Sem segredos em nenhum registro.
+
+**Documentação afetada:** docs/discovery/001, open-questions.
+
+#### Slice 0.1.2 — MCP SDK evaluation
+
+**ID:** SLICE-DISCOVERY-002
+
+**Título:** Escolher SDK MCP para .NET.
+
+**Objetivo:** fundamentar escolha de pacote.
+
+**Dependências:** Slice 0.1.1.
+
+**Documentação afetada:** docs/discovery/002, open-questions OQ-001.
+
+#### Slice 0.1.3 — OpenCode container PoC
+
+**ID:** SLICE-DISCOVERY-003
+
+**Título:** Provar OpenCode Server em container descartável.
+
+**Objetivo:** validar viabilidade do runner antes do vertical.
+
+**Dependências:** Slice 0.1.1.
+
+**Documentação afetada:** docs/discovery/003, open-questions OQ-020, OQ-021.
+
+#### Slice 0.1.4 — Repository pilot selection
+
+**ID:** SLICE-DISCOVERY-004
+
+**Título:** Escolher e cadastrar repositório piloto.
+
+**Objetivo:** ter alvo concreto para os primeiros slices.
+
+**Dependências:** Slice 0.1.3.
+
+**Documentação afetada:** docs/discovery/004, examples/repositories, open-questions OQ-010.
+
+#### Slice 0.1.5 — Workspace strategy evaluation
+
+**ID:** SLICE-DISCOVERY-005
+
+**Título:** Escolher estratégia de workspace.
+
+**Objetivo:** fundamentar Fase 5.
+
+**Dependências:** Slice 0.1.4.
+
+**Documentação afetada:** docs/discovery/005, open-questions OQ-011 a OQ-015.
+
+#### Slice 0.1.6 — Authentication and networking
+
+**ID:** SLICE-DISCOVERY-006
+
+**Título:** Validar autenticação e rede Docker.
+
+**Objetivo:** fundamentar Fase 1.
+
+**Dependências:** Slice 0.1.1.
+
+**Documentação afetada:** docs/discovery/006, open-questions OQ-030, OQ-032.
+
+#### Slice 0.1.7 — Process execution evaluation
+
+**ID:** SLICE-DISCOVERY-007
+
+**Título:** Avaliar estratégia de subprocesso.
+
+**Objetivo:** fundamentar policy engine e validation pipeline.
+
+**Dependências:** Slice 0.1.1.
+
+**Documentação afetada:** docs/discovery/007, open-questions OQ-005.
+
+#### Slice 0.1.8 — Phase 0 report
+
+**ID:** SLICE-DISCOVERY-REPORT
+
+**Título:** Consolidar relatório da Fase 0.
+
+**Objetivo:** liberar gate para Fase 1.
+
+**Dependências:** Slices 0.1.1 a 0.1.7.
+
+**Documentação afetada:** docs/discovery/phase-0-report.md, risk-register, ADRs conforme necessário.
+
+> **Gate para Fase 1:** todos os 13 itens do gate definidos em [`../docs/discovery/README.md`](../docs/discovery/README.md#gate-para-iniciar-a-fase-1) devem estar fechados antes de iniciar Slice 1.1.1.
+
+---
+
 ## EPIC 1 — MVP Read-Only
 
 ### Capability 1.1 — Vertical slice read-only com OpenCode
 
-#### Slice 1.1.1 — Fundação da plataforma
+#### Slice 1.1.1 — Foundation da plataforma
 
 **ID:** SLICE-FOUNDATION-001
 
@@ -27,11 +150,11 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **Motivação:** sem base, nenhuma fatia posterior funciona.
 
-**Dependências:** nenhuma.
+**Dependências:** gate da Fase 0.
 
 **Escopo:**
 
-* Solução .NET 8.
+* Solução .NET 8 (versão confirmada no Discovery 001).
 * Compose mínimo.
 * Health checks.
 * Logs estruturados.
@@ -72,7 +195,7 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 **Escopo:**
 
 * Tabela `repositories`.
-* Seed inicial.
+* Seed inicial (incluindo repositório piloto do Discovery 004).
 * `repositories_list`.
 
 **Fora de escopo:** políticas por repositório.
@@ -91,17 +214,17 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **Documentação afetada:** spec 002.
 
-#### Slice 1.1.3 — OpenCode Adapter read-only
+#### Slice 1.1.3 — OpenCode Read-Only Vertical Slice
 
-**ID:** SLICE-OPENCODE-READONLY-001
+**ID:** SLICE-OPENCODE-READONLY-VS
 
-**Título:** Despachar execução read-only para OpenCode Runner e receber resultado.
+**Título:** Despachar execução read-only via MCP com contrato mínimo.
 
-**Objetivo:** vertical completo read-only.
+**Objetivo:** primeiro vertical realmente utilizável.
 
-**Motivação:** validar o fluxo MCP → bridge → runner → relatório.
+**Motivação:** entregar a primeira fatia observável do OCAB (Fase 3 do roadmap).
 
-**Dependências:** Slices 1.1.1 e 1.1.2.
+**Dependências:** Slices 1.1.1 e 1.1.2, mais PoC validada em [`../docs/discovery/003-opencode-container-poc.md`](../docs/discovery/003-opencode-container-poc.md).
 
 **Escopo:**
 
@@ -110,9 +233,15 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 * Eventos.
 * Cancelamento.
 * Timeout.
-* `run_report` simplificado.
+* Ferramentas MCP mínimas:
+  * `repositories_list`
+  * `run_create`
+  * `run_get`
+  * `run_cancel`
+  * `run_report`
+* Relatório no contrato de `run_report`.
 
-**Fora de escopo:** workspace-write, validações complexas.
+**Fora de escopo:** workspace-write, validações complexas, ferramentas MCP adicionais.
 
 **Critérios de aceite:**
 
@@ -120,15 +249,60 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 * `run_report` contém summary, scope, filesChanged (vazio), findings, artifacts.
 * Repositório original não é alterado.
 * `run_cancel` funciona.
+* Cliente MCP (ou Odysseus) consegue fluxo completo.
 
 **Validações:**
 
 * Integração: OpenCode real em container.
 * Contrato: schema de eventos.
+* Segurança: runner não root, sem Docker socket.
 
 **Riscos:** instabilidade do OpenCode.
 
-**Documentação afetada:** specs 003, 004, 005.
+**Documentação afetada:** specs 003, 004, 005, contracts/runner-adapter.
+
+#### Slice 1.1.4 — MCP Contract Completion
+
+**ID:** SLICE-MCP-COMPLETION-001
+
+**Título:** Completar contrato MCP e endurecer aspectos transversais.
+
+**Objetivo:** finalizar ferramentas e qualidades contratuais.
+
+**Motivação:** Fase 4 do roadmap.
+
+**Dependências:** Slice 1.1.3.
+
+**Escopo:**
+
+* `agents_list`.
+* `run_diff` (modos `summary`, `stat`, `patch`).
+* `review_create`.
+* Paginação padronizada.
+* Erros padronizados.
+* Autenticação Bearer.
+* Idempotência em `run_create`.
+* Limites de payload.
+* Versionamento de contrato.
+* Headers de correlação.
+
+**Fora de escopo:** SSE streaming, multi-tenant.
+
+**Critérios de aceite:**
+
+* Todas as ferramentas listadas funcionais.
+* Erros seguem [`../docs/contracts/errors.md`](../docs/contracts/errors.md).
+* Autenticação rejeita chamadas sem token.
+* Idempotência validada.
+* Limites respeitados.
+* Header `X-OCAB-Contract-Version` presente.
+
+**Validações:**
+
+* Contrato: schemas.
+* Segurança: auth.
+
+**Documentação afetada:** spec 004, contracts/mcp-tools, contracts/errors.
 
 ---
 
@@ -517,4 +691,17 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 ## Próximo slice recomendado
 
-Slice 1.1.1 — Fundação da plataforma, precedido por qualquer descoberta documental pendente (revisão da Fase 0).
+**Nenhuma implementação deve ser iniciada.**
+
+A próxima entrega é **exclusivamente documental e de discovery técnico** da Fase 0:
+
+* Slice 0.1.1 — Environment baseline.
+* Slice 0.1.2 — MCP SDK evaluation.
+* Slice 0.1.3 — OpenCode container PoC.
+* Slice 0.1.4 — Repository pilot selection.
+* Slice 0.1.5 — Workspace strategy evaluation.
+* Slice 0.1.6 — Authentication and networking.
+* Slice 0.1.7 — Process execution evaluation.
+* Slice 0.1.8 — Phase 0 report.
+
+A Fase 1 (Foundation) só inicia quando o gate definido em [`../docs/discovery/README.md`](../docs/discovery/README.md#gate-para-iniciar-a-fase-1) estiver fechado.

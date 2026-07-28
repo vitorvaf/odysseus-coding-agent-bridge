@@ -147,13 +147,14 @@ Não aplicável diretamente. Estados do `Run` são cobertos pela spec 003.
 
 * Docker Engine.
 * Docker Compose.
-* .NET 8 SDK.
+* .NET 8 SDK (pinado via `global.json`).
 * Imagem base Linux (ex.: Debian slim).
+* [`../adr/0015-runtime-version.md`](../adr/0015-runtime-version.md) — runtime alvo .NET 8 LTS.
 
 ## Riscos
 
 * Mudança breaking no Docker Compose v2 pode exigir ajustes.
-* Versão .NET 8 pode ficar desatualizada antes do MVP; revisar periodicamente.
+* Versão .NET 8 LTS pode ficar desatualizada antes do MVP; revisar periodicamente (ver ADR-0015).
 
 ## Decisões relacionadas
 
