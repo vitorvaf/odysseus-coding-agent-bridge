@@ -1,16 +1,27 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Sockets;
+using System.Text;
+using System.Text.Json;
 using Xunit;
 
 namespace OcabBridge.TestSupport;
 
 // xUnit collection fixture that starts a real OpenCode v1.18.8 server
-// on a dedicated test port via tests/scripts/start-opencode.sh and
-// tears it down after the assembly's contract + lifecycle tests have
-// run. The script uses setsid + </dev/null + log-file redirection to
-// detach OpenCode from the test runner's process group; this is
-// required because .NET Process.Start pipe redirection caused OpenCode
-// to log "listening on …" but never actually accept TCP connections
-// in this environment.
+// on a dedicated test port via a plain Process (no setsid) and tears it
+// down via SIGTERM → grace period → SIGKILL. The previous implementation
+// used `setsid + </dev/null + log file redirect via bash`, which
+// crashed the OpenCode runner in CI ("ServeError" right after loading
+// config) while the same command worked when run manually. The new
+// path keeps the lifecycle fully under the fixture's control: the
+// process is a ProcessStartInfo child with redirected stdio drained by
+// background Tasks, cancellation propagates via Kill(entireProcessTree),
+// and the per-test XDG_CONFIG_HOME is wiped in DisposeAsync.
+//
+// Auth: OPENCODE_SERVER_PASSWORD is set via env on the Process, so the
+// fixture sends Basic Auth on /global/health and the runner refuses
+// unauthenticated requests (mirrors the production posture).
 //
 // The fixture type lives in this TestSupport assembly. Each test
 // assembly that wants to consume the shared instance must declare a
@@ -26,23 +37,11 @@ public sealed class OpenCodeTestServer : IAsyncLifetime
     public string Password { get; } = "test123_contract";
     // Pinned upstream version validated by the spike in
     // docs/discovery/012-opencode-contract-spike.md and locked in by
-    // ADR-0017. Exposed as instance property for assertions on
-    // /global/health payload; the literal is duplicated as a const so
-    // EnsureBinaryDownloadedAsync can use it without holding the
-    // fixture instance.
+    // ADR-0017.
     public string ExpectedVersion { get; } = "1.18.8";
 
-    private string? _binaryPath;
-    private string? _scriptPath;
-    private string _pidFile = "";
-    private string _logFile = "";
-    private int _openCodePid;
-
-    // Static lock to serialize downloads of the OpenCode binary when
-    // multiple xUnit collections (each holding its own fixture
-    // instance) start concurrently on a CI runner. The lock is
-    // process-wide so a single download serves all collection
-    // fixtures within the same test process.
+    // Process-wide lock to serialize downloads of the OpenCode binary
+    // when multiple xUnit collections start concurrently on a CI runner.
     private static readonly SemaphoreSlim _downloadLock = new(1, 1);
 
     // Default location used when neither OCAB_TEST_OPENCODE_BIN is set
@@ -51,11 +50,20 @@ public sealed class OpenCodeTestServer : IAsyncLifetime
     private const string DefaultInstallRoot = "/tmp/opencode-v1.18.8";
     private const string DefaultVersionTag = "v1.18.8";
     private const string ExpectedVersionLiteral = "1.18.8";
-    // The release tarball for Linux x64 (glibc). OpenCode also ships musl
-    // and arm64 variants; the GitHub Actions runner is ubuntu-latest
-    // which is glibc x64, so this asset is the right one.
+    // Release tarball for Linux x64 (glibc). ubuntu-latest CI runners
+    // are glibc x64 so this asset matches the runner; arm64 / musl
+    // variants exist on the release page for other targets.
     private const string DownloadUrl =
         $"https://github.com/anomalyco/opencode/releases/download/{DefaultVersionTag}/opencode-linux-x64.tar.gz";
+
+    private const string StartupDeadline = "60s";
+
+    private string? _binaryPath;
+    private string? _configRoot;
+    private string? _logFile;
+    private Process? _process;
+    private Task? _stdoutDrain;
+    private Task? _stderrDrain;
 
     public async Task InitializeAsync()
     {
@@ -73,97 +81,218 @@ public sealed class OpenCodeTestServer : IAsyncLifetime
                 "github.com/anomalyco/opencode releases.");
         }
 
-        _scriptPath = Environment.GetEnvironmentVariable("OCAB_TEST_OPENCODE_SCRIPT")
-            ?? Path.GetFullPath(Path.Combine(
-                AppContext.BaseDirectory,
-                "..", "..", "..", "..", "scripts", "start-opencode.sh"));
-        if (!File.Exists(_scriptPath))
-        {
-            throw new FileNotFoundException(
-                $"OpenCode start script not found at {_scriptPath}. " +
-                "Set OCAB_TEST_OPENCODE_SCRIPT or restore tests/scripts/start-opencode.sh.");
-        }
+        // Per-test exclusive XDG_CONFIG_HOME so OpenCode does not read
+        // or mutate any other fixture's config/auth.json/cache. Each
+        // test gets its own fresh $XDG_CONFIG_HOME/opencode/ tree.
+        _configRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"ocab-config-{Port}-{Environment.ProcessId}-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(_configRoot, "opencode"));
 
-        _pidFile = Path.Combine(Path.GetTempPath(), $"ocab-opencode-{Port}-{Environment.ProcessId}.pid");
-        _logFile = Path.Combine(Path.GetTempPath(), $"ocab-opencode-{Port}-{Environment.ProcessId}.log");
+        _logFile = Path.Combine(_configRoot, "opencode.log");
 
-        // Invoke the script via bash. The script detaches OpenCode via
-        // setsid, writes the PID to _pidFile and returns immediately.
         var psi = new ProcessStartInfo
         {
-            FileName = "/bin/bash",
+            FileName = _binaryPath,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
-        psi.ArgumentList.Add(_scriptPath);
+        psi.ArgumentList.Add("serve");
+        psi.ArgumentList.Add("--hostname");
+        psi.ArgumentList.Add("127.0.0.1");
+        psi.ArgumentList.Add("--port");
         psi.ArgumentList.Add(Port.ToString());
-        psi.ArgumentList.Add(_pidFile);
-        psi.ArgumentList.Add(_logFile);
-        psi.ArgumentList.Add(_binaryPath);
-        psi.ArgumentList.Add(Password);
+        psi.ArgumentList.Add("--print-logs");
 
-        using var launcher = Process.Start(psi)
-            ?? throw new InvalidOperationException("Failed to launch start-opencode.sh");
-        await launcher.WaitForExitAsync();
-        if (launcher.ExitCode != 0)
+        // Per-test XDG_CONFIG_HOME applies to the child process only.
+        // We do not mutate the parent's XDG_CONFIG_HOME because that
+        // would leak across tests.
+        psi.EnvironmentVariables["XDG_CONFIG_HOME"] = _configRoot;
+        // Basic Auth on the runner side.
+        psi.EnvironmentVariables["OPENCODE_SERVER_PASSWORD"] = Password;
+
+        try
         {
-            string log = "<log not written>";
-            try { if (File.Exists(_logFile)) log = await File.ReadAllTextAsync(_logFile); } catch { }
-            throw new InvalidOperationException(
-                $"start-opencode.sh exited with code {launcher.ExitCode}.\n--- log ---\n{log}");
+            _process = Process.Start(psi)
+                ?? throw new InvalidOperationException("Failed to start OpenCode");
+        }
+        catch
+        {
+            Directory.Delete(_configRoot, recursive: true);
+            throw;
         }
 
-        // Read the PID the script wrote.
-        var pidText = await File.ReadAllTextAsync(_pidFile);
-        if (!int.TryParse(pidText.Trim(), out _openCodePid))
-        {
-            throw new InvalidOperationException(
-                $"start-opencode.sh wrote an invalid PID file '{_pidFile}': '{pidText}'");
-        }
+        // Drain stdout/stderr continuously so the pipe buffer does not
+        // fill and deadlock the child process (OpenCode writes structured
+        // logs to stderr). Drain tasks exit when the process closes its
+        // handles (DisposeAsync / process exit).
+        _stdoutDrain = DrainAsync(_process.StandardOutput, _logFile + ".stdout");
+        _stderrDrain = DrainAsync(_process.StandardError, _logFile + ".stderr");
 
-        await WaitForReadyAsync(TimeSpan.FromSeconds(30));
+        await WaitForReadyAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
     }
 
     public async Task DisposeAsync()
     {
-        if (_openCodePid > 0)
+        // Try to stop OpenCode gracefully via SIGTERM; fall back to
+        // SIGKILL (via Process.Kill) if the runner does not exit within
+        // the grace period. The kill is best-effort: if the process has
+        // already exited, both paths are no-ops.
+        if (_process is { HasExited: false })
+        {
+        try
+        {
+            var killPsi = new ProcessStartInfo
+            {
+                FileName = "/bin/bash",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            killPsi.ArgumentList.Add("-c");
+            killPsi.ArgumentList.Add($"kill -TERM {_process.Id} 2>/dev/null; true");
+            using var kill = Process.Start(killPsi);
+            kill?.WaitForExit(2000);
+        }
+        catch { /* SIGTERM delivery failed; rely on WaitForExit timeout below */ }
+
+            try
+            {
+                if (!_process.WaitForExit(TimeSpan.FromSeconds(5)))
+                {
+                    _process.Kill(entireProcessTree: true);
+                    _process.WaitForExit(2000);
+                }
+            }
+            catch { /* best effort */ }
+        }
+        _process?.Dispose();
+
+        // Wait for the drain tasks to finish (process handles closed).
+        if (_stdoutDrain is not null)
+        {
+            try { await _stdoutDrain.ConfigureAwait(false); } catch { /* ignore */ }
+        }
+        if (_stderrDrain is not null)
+        {
+            try { await _stderrDrain.ConfigureAwait(false); } catch { /* ignore */ }
+        }
+
+        // Validate that the port is actually free; fail the fixture if
+        // a leftover process is still listening. This is the second
+        // gate that backs the CI's contract-tests step (the first is
+        // the /global/health probe; this is the post-mortem).
+        if (IsPortOpen("127.0.0.1", Port, TimeSpan.FromSeconds(2)))
+        {
+            throw new InvalidOperationException(
+                $"Port {Port} still in use after OpenCode shutdown; " +
+                "a leftover process is likely bound to the test port");
+        }
+
+        // Best-effort cleanup of the per-test config root. Failure
+        // here does not fail the fixture; the runner has already exited.
+        try { Directory.Delete(_configRoot!, recursive: true); } catch { /* ignore */ }
+    }
+
+    private static async Task DrainAsync(StreamReader reader, string logPath)
+    {
+        await using var writer = new StreamWriter(logPath, append: true);
+        try
+        {
+            string? line;
+            while ((line = await reader.ReadLineAsync().ConfigureAwait(false)) is not null)
+            {
+                await writer.WriteLineAsync(line).ConfigureAwait(false);
+                await writer.FlushAsync().ConfigureAwait(false);
+            }
+        }
+        catch { /* best effort */ }
+    }
+
+    private static bool IsPortOpen(string host, int port, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
         {
             try
             {
-                var proc = Process.GetProcessById(_openCodePid);
-                if (!proc.HasExited)
+                using var client = new TcpClient();
+                var connectTask = client.ConnectAsync(host, port);
+                if (connectTask.Wait(TimeSpan.FromMilliseconds(200)) && client.Connected)
                 {
-                    proc.Kill(entireProcessTree: true);
-                    await proc.WaitForExitAsync();
+                    return true;
                 }
-                proc.Dispose();
             }
-            catch
+            catch { /* connection refused / timeout */ }
+        }
+        return false;
+    }
+
+    private async Task WaitForReadyAsync(TimeSpan timeout)
+    {
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        var auth = Convert.ToBase64String(
+            System.Text.Encoding.UTF8.GetBytes($"opencode:{Password}"));
+        http.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Basic", auth);
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Exception? last = null;
+        var attempts = 0;
+        while (sw.Elapsed < timeout)
+        {
+            attempts++;
+            try
             {
-                // Process may already be gone — that's fine.
+                using var resp = await http.GetAsync($"{BaseUrl}/global/health").ConfigureAwait(false);
+                if (resp.IsSuccessStatusCode)
+                {
+                    var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    if (body.Contains($"\"version\":\"{ExpectedVersionLiteral}\""))
+                    {
+                        Console.Error.WriteLine(
+                            $"[opencode-fixture] ready after {attempts} attempt(s) in {sw.Elapsed.TotalSeconds:F1}s");
+                        return;
+                    }
+                    last = new InvalidOperationException(
+                        $"OpenCode reports wrong version. body='{body}' expected version='{ExpectedVersionLiteral}'");
+                }
+                else
+                {
+                    last = new InvalidOperationException($"status {(int)resp.StatusCode}");
+                }
+            }
+            catch (Exception ex) { last = ex; }
+            await Task.Delay(500).ConfigureAwait(false);
+        }
+        string logTail = "<log not written>";
+        try
+        {
+            if (_logFile is not null && File.Exists(_logFile + ".stderr"))
+            {
+                var lines = await File.ReadAllLinesAsync(_logFile + ".stderr").ConfigureAwait(false);
+                logTail = string.Join(Environment.NewLine, lines.TakeLast(50));
             }
         }
-
-        // Best-effort cleanup of temp files; ignore failures.
-        try { if (File.Exists(_pidFile)) File.Delete(_pidFile); } catch { }
-        try { if (File.Exists(_logFile)) File.Delete(_logFile); } catch { }
+        catch { /* ignore */ }
+        throw new InvalidOperationException(
+            $"OpenCode server did not become ready within {timeout} after {attempts} attempts. " +
+            $"Last error: {last?.Message}\n--- last stderr lines ---\n{logTail}",
+            last);
     }
 
     // Downloads the pinned OpenCode binary into the default location if
     // it is not already present. Serialized across the process so
-    // concurrent fixtures (Contract + Integration tests share the
-    // binary path) do not race each other.
+    // concurrent fixtures (Contract + Integration share the binary
+    // path) do not race each other.
     private static async Task EnsureBinaryDownloadedAsync(string targetPath)
     {
-        // Already downloaded by another fixture in this process?
         if (File.Exists(targetPath)) return;
 
         await _downloadLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            // Re-check after acquiring the lock (another fixture may
-            // have finished the download while we were waiting).
             if (File.Exists(targetPath)) return;
 
             if (Environment.OSVersion.Platform != PlatformID.Unix)
@@ -235,14 +364,17 @@ public sealed class OpenCodeTestServer : IAsyncLifetime
                 }
             }
 
-            // Verify the binary is executable and reports the pinned version.
+            // chmod +x via PlatformNotSupportedException guard so the
+            // CA1416 analyzer warning stays suppressed on Windows.
             try
             {
-                System.IO.File.SetUnixFileMode(targetPath,
-                    System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserWrite |
-                    System.IO.UnixFileMode.UserExecute | System.IO.UnixFileMode.GroupRead |
-                    System.IO.UnixFileMode.GroupExecute | System.IO.UnixFileMode.OtherRead |
-                    System.IO.UnixFileMode.OtherExecute);
+                if (!OperatingSystem.IsWindows())
+                {
+                    File.SetUnixFileMode(targetPath,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                        UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                }
             }
             catch (PlatformNotSupportedException) { /* not on Unix */ }
 
@@ -266,7 +398,6 @@ public sealed class OpenCodeTestServer : IAsyncLifetime
                     $"stdout='{versionOut}' stderr='{stderr}' expected='{ExpectedVersionLiteral}'");
             }
 
-            // Clean up the tarball; keep the install root tidy.
             try { File.Delete(tarballPath); } catch { /* best-effort */ }
 
             Console.Error.WriteLine($"[opencode-fixture] downloaded and verified {targetPath} ({versionOut})");
@@ -275,49 +406,5 @@ public sealed class OpenCodeTestServer : IAsyncLifetime
         {
             _downloadLock.Release();
         }
-    }
-
-    private async Task WaitForReadyAsync(TimeSpan timeout)
-    {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-        // The fixture starts the runner with OPENCODE_SERVER_PASSWORD set;
-        // send Basic Auth on the liveness probe so the runner accepts it.
-        var authBytes = System.Text.Encoding.UTF8.GetBytes($"opencode:{Password}");
-        http.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue(
-                "Basic", Convert.ToBase64String(authBytes));
-
-        var sw = Stopwatch.StartNew();
-        Exception? last = null;
-        var attempts = 0;
-        while (sw.Elapsed < timeout)
-        {
-            attempts++;
-            try
-            {
-                using var resp = await http.GetAsync($"{BaseUrl}/global/health");
-                if (resp.IsSuccessStatusCode)
-                {
-                    Console.Error.WriteLine($"[opencode-fixture] ready after {attempts} attempt(s) in {sw.Elapsed.TotalSeconds:F1}s");
-                    return;
-                }
-                last = new InvalidOperationException($"status {(int)resp.StatusCode}");
-            }
-            catch (Exception ex) { last = ex; }
-            await Task.Delay(500);
-        }
-        string tail = "<log not written>";
-        try
-        {
-            if (File.Exists(_logFile))
-            {
-                var lines = await File.ReadAllLinesAsync(_logFile);
-                tail = string.Join(Environment.NewLine, lines);
-            }
-        }
-        catch { /* ignore */ }
-        throw new InvalidOperationException(
-            $"OpenCode server did not become ready within {timeout} after {attempts} attempts. Last error: {last?.Message}\n--- log ({_logFile}) ---\n{tail}",
-            last);
     }
 }
