@@ -32,6 +32,7 @@ builder.Logging.AddJsonConsole(opts =>
 // Persistence (Npgsql + Dapper; EF Core deferred per Phase 0 decision).
 builder.Services.AddSingleton<NpgsqlConnectionFactory>();
 builder.Services.AddSingleton<RunRepository>();
+builder.Services.AddSingleton<RepositoryRepository>();
 
 // ASP.NET Core health-check registration (live endpoint is wired inline;
 // readiness check verifies the postgres dependency).
@@ -76,5 +77,8 @@ app.MapMetrics();
 
 // Runs API (insert + read; lifecycle deferred to slice 1.1.3).
 RunsEndpoints.Map(app);
+
+// Repositories API (list + slug validation; policies per repo deferred to Phase 3).
+RepositoriesEndpoints.Map(app);
 
 app.Run();
