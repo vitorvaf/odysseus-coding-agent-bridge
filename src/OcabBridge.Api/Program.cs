@@ -50,16 +50,20 @@ builder.Services.AddSingleton<RepositoryRepository>();
 builder.Services.AddSingleton<AgentRepository>();
 builder.Services.AddSingleton<IdempotencyRepository>();
 
-// Runner adapter (slice 1.1.3). HttpClient is configured via
-// AddHttpClient<TClient> so the OpenCode base URL is sourced from
-// OCAB__OpenCodeUrl env (or Ocab:OpenCodeUrl config).
+// Runner adapter (slice 1.1.3 / SLICE-STAB-002). HttpClient is configured
+// via AddHttpClient<TClient> so the OpenCode base URL is sourced from
+// OCAB__OpenCodeUrl env (or Ocab:OpenCodeUrl config). Basic Auth
+// credentials are attached by OpenCodeAuthHandler, reading
+// OCAB__OpenCodePassword (or Ocab:OpenCodePassword config) — same value
+// as OPENCODE_SERVER_PASSWORD in the runner container.
 var openCodeBaseUrl = builder.Configuration["Ocab:OpenCodeUrl"]
     ?? "http://ocab-opencode-runner:4096";
+builder.Services.AddTransient<OpenCodeAuthHandler>();
 builder.Services.AddHttpClient<OpenCodeAdapter>(c =>
 {
     c.BaseAddress = new Uri(openCodeBaseUrl);
     c.Timeout = TimeSpan.FromMinutes(5);
-});
+}).AddHttpMessageHandler<OpenCodeAuthHandler>();
 builder.Services.AddSingleton<IRunnerAdapter>(sp => sp.GetRequiredService<OpenCodeAdapter>());
 
 // Dispatcher + clock.

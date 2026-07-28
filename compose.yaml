@@ -32,6 +32,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:9010
       OCAB_MCP_TOKEN: ${OCAB_MCP_TOKEN:-__SET_ME__}
+      # SLICE-STAB-002 / ADR-0017: shared Basic Auth password with the
+      # OpenCode runner (OPENCODE_SERVER_PASSWORD). The bridge sends
+      # `Authorization: Basic opencode:<value>` on every request.
+      OCAB__OpenCodePassword: ${OCAB_OPENCODE_SERVER_PASSWORD:-__SET_ME__}
       ConnectionStrings__OcabPg: "Host=ocab-postgres;Port=5432;Username=ocab;Password=${OCAB_PG_PASSWORD:-__SET_ME__};Database=ocab"
     depends_on:
       ocab-postgres:
