@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "applicationUrl": "http://127.0.0.1:9010",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "OCAB_MCP_TOKEN": "local-dev-token",
+        "ConnectionStrings__OcabPg": "Host=127.0.0.1;Port=5432;Username=ocab;Password=__SET_ME__;Database=ocab"
+      }
+    }
+  }
+}

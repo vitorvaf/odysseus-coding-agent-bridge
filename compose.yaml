@@ -1,0 +1,83 @@
+# OCAB slice 1.1.1 (Foundation) — docker compose for local development.
+# Hard constraints honored (docs/discovery/006 and ADR-0006/0013):
+#   - no docker.sock mounts
+#   - no privileged: true
+#   - no network_mode: host
+#   - non-root users (10001:10001 bridge, 999:999 postgres)
+#   - read_only rootfs on the bridge
+#   - cap_drop: ALL on the bridge
+#   - no-new-privileges on the bridge
+#   - resource limits (cpus, memory, pids_limit) on every service
+
+services:
+  ocab-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ocab-bridge:dev
+    container_name: ocab-bridge
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    networks:
+      - ocab-net
+    expose:
+      - "9010"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:9010
+      OCAB_MCP_TOKEN: ${OCAB_MCP_TOKEN:-__SET_ME__}
+      ConnectionStrings__OcabPg: "Host=ocab-postgres;Port=5432;Username=ocab;Password=${OCAB_PG_PASSWORD:-__SET_ME__};Database=ocab"
+    depends_on:
+      ocab-postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+          pids: 256
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:9010/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+
+  ocab-postgres:
+    image: postgres:16-alpine
+    container_name: ocab-postgres
+    user: "999:999"
+    environment:
+      POSTGRES_DB: ocab
+      POSTGRES_USER: ocab
+      POSTGRES_PASSWORD: ${OCAB_PG_PASSWORD:-__SET_ME__}
+    volumes:
+      - ocab-pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - ocab-net
+    expose:
+      - "5432"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+          pids: 128
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ocab -d ocab"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+
+networks:
+  ocab-net:
+    driver: bridge
+
+volumes:
+  ocab-pgdata:

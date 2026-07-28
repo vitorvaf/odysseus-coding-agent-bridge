@@ -1,0 +1,25 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs and runtime
+*.log
+*.pidb
+
+# OCAB secrets (placeholders only — see .env.example and secrets/ocab_mcp_token.example)
+.env
+.env.*.local
+secrets/ocab_mcp_token
+secrets/*.pem
+
+# Build artifacts
+.publish/
+out/
