@@ -31,7 +31,7 @@ namespace OcabBridge.IntegrationTests;
 // da slice; o que está mockado aqui é apenas o adapter, mantendo o
 // OpenCode real no caminho sempre que possível.
 
-public sealed class EndToEndLifecycleTests : IAsyncLifetime
+public sealed class DeterministicCoordinatorTests : IAsyncLifetime
 {
     private PostgreSqlContainer? _postgres;
     private IHost? _host;

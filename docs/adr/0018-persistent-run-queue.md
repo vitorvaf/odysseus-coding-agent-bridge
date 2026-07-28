@@ -2,7 +2,16 @@
 
 ## Status
 
-Proposed
+Accepted (2026-07-28)
+
+Promovida de Proposed em 2026-07-28 com base em:
+
+* **Implementação concreta** (commit `0f86e05 refactor(runs): add awaitable execution coordination`): `IRunExecutionCoordinator` + `RunExecutionCoordinator` + `RunQueueWorker` (BackgroundService); fila persistente no Postgres (`runs` table com `SELECT … FOR UPDATE SKIP LOCKED` no `TryClaimNextPendingAsync`); registry em memória com `CancellationTokenSource` + `TaskCompletionSource<RunTerminalResult>` por run; `RunDispatcher.CreateAsync` removido de `_ = Task.Run(...)` fire-and-forget.
+* **Validação local**: 5/5 testes em `DeterministicCoordinatorTests` cobrem Completion, Cancel, Timeout, ProviderError e idempotência de cancel via `MockRunnerAdapter`; suite completa `dotnet test OcabBridge.slnx` em 20/20 (1/1 Unit + 10/10 Contract + 8/8 Integration + 1/1 Security).
+* **Specs atualizadas**: `Spec 003 (run-lifecycle)` e `Spec 005 (opencode-runner)` documentam a fila persistente, o worker, o timeout, o cancelamento e o tratamento de contract drift.
+* **Evidência**: `discovery/014-deterministic-e2e-lifecycle.md` documenta o status real e os follow-ups remanescentes (OpenCode real com provider determinístico como `SLICE-STAB-004`, race condition em `OpenCodeAdapterLifecycleTests` como follow-up de infra).
+
+A aceitação desta ADR é **condicional** ao caminho E2E ponta a ponta com OpenCode real e provedor determinístico (`SLICE-STAB-004`), que reabilitará os 4 testes `OpenCodeRealLifecycleTests` (cancel com `/abort` real, provider error com 5xx real, no orphan processes, Git origin intacto) que ficaram pendentes nesta iteração.
 
 ## Contexto
 

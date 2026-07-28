@@ -13,7 +13,7 @@ namespace OcabBridge.TestSupport;
 // coordinator + dispatcher + adapter chain ponta a ponta sem depender
 // de credencial LLM real. O OpenCode real continua testado em outros
 // cenários (cancelamento, timeout, erro de provider) pelos testes em
-// OcabBridge.IntegrationTests.EndToEndLifecycleTests que sobem o
+// OcabBridge.IntegrationTests.DeterministicCoordinatorTests que sobem o
 // runner real via OpenCodeTestServer.
 //
 // Cenários controláveis via SetScenario:

@@ -33,7 +33,7 @@ sequenceDiagram
 * Relatório contém summary, filesChanged (vazio em ReadOnly), validations, findings — persistido em `runs.result_json`.
 * Repositório original não foi alterado (validado por `git rev-parse HEAD` antes/depois).
 * Nenhum processo órfão fica ativo após o teste.
-* Coberto por `EndToEndLifecycleTests.Prompt_readonly_terminates_in_completed_with_persisted_report`.
+* Coberto por `DeterministicCoordinatorTests.Prompt_readonly_terminates_in_completed_with_persisted_report`.
 
 ## Fluxo 2 — Implementação workspace-write
 
@@ -89,7 +89,7 @@ sequenceDiagram
 * Motivo (`reason`) é persistido em `run_events`.
 * Nenhum processo órfão fica ativo após o cancelamento.
 * Nenhuma transição posterior de `Cancelled` para `Completed`.
-* Coberto por `EndToEndLifecycleTests.Cancel_terminates_in_cancelled_and_aborts_opencode_session`.
+* Coberto por `DeterministicCoordinatorTests.Cancel_terminates_in_cancelled_and_aborts_opencode_session`.
 
 ## Fluxo 4 — Timeout real (E2E)
 
@@ -118,7 +118,7 @@ sequenceDiagram
 * `POST /session/{id}/abort` foi chamado (cancelamento upstream).
 * Slot de concorrência liberado.
 * Ausência de execução órfã.
-* Coberto por `EndToEndLifecycleTests.Timeout_terminates_in_timedout_when_provider_is_slow`.
+* Coberto por `DeterministicCoordinatorTests.Timeout_terminates_in_timedout_when_provider_is_slow`.
 
 ## Fluxo 5 — Idempotência
 

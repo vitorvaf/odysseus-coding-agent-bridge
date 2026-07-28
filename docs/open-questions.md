@@ -106,7 +106,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | OQ-100 | Licença do repositório | LICENSE está como Apache-2.0; foi decisão não autorizada | — | P1 | Sponsor | Aprovação explícita do sponsor | LICENSE confirmado ou substituído | Resolved | 0016 |
-| OQ-200 | Estabilização do Epic 1 | PR `chore(stabilization)` deve fechar 4 pendências: validação OpenCode real, rede de testes automatizados + CI, decisão de licença, correção de nomenclatura Milestone/Epic/Slice | Epic 1 → Epic 2 | P1 | Plataforma | Smoke test contra container real; pipeline verde; OQ-100 resolvida; docs atualizados | PR mergeado e gate considerado fechado | Resolved (partial — ver `discovery/013`) | 0017 |
+| OQ-200 | Estabilização do Epic 1 | PR `chore(stabilization)` deve fechar 4 pendências: validação OpenCode real ponta a ponta, rede de testes automatizados + CI, decisão de licença, correção de nomenclatura Milestone/Epic/Slice | Epic 1 → Epic 2 | P1 | Plataforma | Smoke test contra OpenCode real com provedor determinístico; pipeline verde; OQ-100 resolvida; docs atualizados | PR mergeado e gate considerado fechado | Open (reaberta em 2026-07-28: evidências atuais cobrem coordinator + dispatcher + adapter chain via `DeterministicCoordinatorTests` com `MockRunnerAdapter`, mas o caminho `OCAB → OpenCode real → provider determinístico → eventos reais` ainda não foi exercitado ponta a ponta. Ver `discovery/014-deterministic-e2e-lifecycle.md` § Limitações conhecidas e `SLICE-STAB-004`) | 0017 |
 
 ## Próximos passos obrigatórios (P0)
 
@@ -168,5 +168,5 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-090 | Resolved |
 | OQ-091 | Resolved (Basic via `OPENCODE_SERVER_PASSWORD` validado em discovery/011) |
 | OQ-100 | Resolved (ADR-0016; Apache-2.0 aceito em 2026-07-28) |
-| OQ-200 | Resolved (partial — smoke test ponta a ponta requer provedor LLM, documentado em `discovery/013`; demais critérios cobertos) |
+| OQ-200 | Open (reaberta em 2026-07-28: `DeterministicCoordinatorTests` valida apenas o caminho coordinator + dispatcher + adapter com MockRunnerAdapter; o caminho OCAB → OpenCode real → provider determinístico → eventos reais ainda precisa ser exercitado. Cobertura completa depende da `SLICE-STAB-004`.) |
 | OQ-201 | Resolved (adapter alinhado, contract drift eliminado, contract tests 10/10 verdes) |
