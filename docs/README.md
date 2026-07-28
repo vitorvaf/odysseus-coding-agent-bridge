@@ -2,6 +2,34 @@
 
 Documentação do Odysseus Coding Agent Bridge (OCAB). Cada documento abaixo está vinculado a uma das áreas do projeto.
 
+## Estado de entrega
+
+Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planning/milestones.md`](planning/milestones.md).
+
+| Fase | Status | Evidência |
+| --- | --- | --- |
+| Fase 0 — Discovery | **Concluída** | [`discovery/phase-0-report.md`](discovery/phase-0-report.md); commits `62e9bcf`, `95d8f04` |
+| Fase 1 — MVP Read-Only Vertical Slice | **Concluída** | smoke test contra stack real; commits `f6ded6e`, `ff26974`, `d65fc5c`, `da4c3b7`, `95d8f04` |
+| Fase 2 — Workspace Write (slice 2.1+) | Pendente | bloqueia em `specs/007-workspace-isolation` + `003-run-lifecycle` diferidos |
+| Fase 8 — Codex Runner | Pendente | pós-MVP (ADR-0010) |
+| Fase 9 — Antigravity | Pendente | pós-MVP (ADR-0011) |
+
+### Slices Phase 1 entregues
+
+| Slice | Commit | Conteúdo verificado |
+| --- | --- | --- |
+| 1.1.1 — Foundation | `f6ded6e` | bridge ASP.NET 8 + health + bearer auth + runs |
+| 1.1.2 — Repository Registry | `ff26974` | `repositories` table + `repositories_list` + slug validation |
+| 1.1.3 — OpenCode Read-Only VS | `d65fc5c` | adapter + dispatcher + MCP + runner container |
+| 1.1.4 — MCP Contract Completion | `da4c3b7` | `agents_list`, `run_diff`, `review_create`, idempotência, paginação, `X-OCAB-Contract-Version`, `X-OCAB-Trace-Id` |
+| fix(phase1): review fixes | `95d8f04` | correções de Dapper + Dockerfile + Postgres entrypoint |
+
+### Diferido / pendente
+
+* **spec 003 — máquina de estados**: shippamos 7 dos 14 estados (`Pending`, `Running`, `Completed`, `Cancelling`, `Cancelled`, `Failed`, `TimedOut`). Os 7 restantes (`ValidatingRequest`, `PreparingWorkspace`, `ValidatingResult`, `ReviewRequired`, `CompletedWithValidationErrors`, `ChangesRequested`, `Rejected`) entram em Phase 2/3.
+* **OpenCode Runner (binário real)**: o build do container em `poc/opencode-container/` testou primitivos de hardening, mas a imagem oficial `ghcr.io/sst/opencode` retornou `denied` neste ambiente. O `Dockerfile` tem fallback documentado (instalador oficial + bind-mount do binário do host). Validação ponta-a-ponta fica para ambiente com acesso ao registry.
+* **OQ-100 — LICENSE**: `LICENSE` permanece untracked aguardando confirmação do sponsor (Apache-2.0 assumido em iteração anterior sem autorização).
+
 ## Mapa
 
 ### Projeto
