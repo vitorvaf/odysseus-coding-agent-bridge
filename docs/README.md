@@ -6,13 +6,14 @@ Documentação do Odysseus Coding Agent Bridge (OCAB). Cada documento abaixo est
 
 Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planning/milestones.md`](planning/milestones.md).
 
-| Fase | Status | Evidência |
+| Milestone / Epic | Status | Evidência |
 | --- | --- | --- |
-| Fase 0 — Discovery | **Concluída** | [`discovery/phase-0-report.md`](discovery/phase-0-report.md); commits `62e9bcf`, `95d8f04` |
-| Fase 1 — MVP Read-Only Vertical Slice | **Concluída** | smoke test contra stack real; commits `f6ded6e`, `ff26974`, `d65fc5c`, `da4c3b7`, `95d8f04` |
-| Fase 2 — Workspace Write (slice 2.1+) | Pendente | bloqueia em `specs/007-workspace-isolation` + `003-run-lifecycle` diferidos |
-| Fase 8 — Codex Runner | Pendente | pós-MVP (ADR-0010) |
-| Fase 9 — Antigravity | Pendente | pós-MVP (ADR-0011) |
+| Milestone 0 — Discovery | **Concluído** | [`discovery/phase-0-report.md`](discovery/phase-0-report.md); commits `62e9bcf`, `95d8f04` |
+| Epic 1 — MVP Read-Only (Slices 1.1.1–1.1.4) | **Concluído com follow-ups** | smoke test contra stack real; commits `f6ded6e`, `ff26974`, `d65fc5c`, `da4c3b7`, `95d8f04`; stabilization gate em curso |
+| Epic 2 — MVP Workspace-Write (Slices 2.1.1–2.2.2) | Pendente | bloqueia em `specs/007-workspace-isolation` + `003-run-lifecycle` diferidos |
+| Epic 3 — Operations | Pendente | pós-MVP (ADR-0012) |
+| Epic 4 — Codex Runner | Pendente | pós-MVP (ADR-0010) |
+| Epic 5 — Antigravity | Pendente | pós-MVP (ADR-0011) |
 
 ### Slices Phase 1 entregues
 
@@ -52,7 +53,7 @@ Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planni
 
 ### ADRs
 * [`adr/README.md`](adr/README.md) — índice.
-* ADRs `0001`–`0014` em [`adr/`](adr/).
+* ADRs `0001`–`0016` em [`adr/`](adr/).
 
 ### Especificações
 * [`specs/001-platform-foundation/spec.md`](specs/001-platform-foundation/spec.md) — fundação da plataforma.
@@ -123,8 +124,8 @@ Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planni
 ### Diagramas
 * [`diagrams/README.md`](diagrams/README.md) — índice de diagramas.
 
-### Discovery (Fase 0)
-* [`discovery/README.md`](discovery/README.md) — índice da Fase 0.
+### Discovery (Milestone 0)
+* [`discovery/README.md`](discovery/README.md) — índice do Milestone 0 (Discovery).
 * [`discovery/001-environment-baseline.md`](discovery/001-environment-baseline.md)
 * [`discovery/002-mcp-sdk-evaluation.md`](discovery/002-mcp-sdk-evaluation.md)
 * [`discovery/003-opencode-container-poc.md`](discovery/003-opencode-container-poc.md)

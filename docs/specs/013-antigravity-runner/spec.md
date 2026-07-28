@@ -80,7 +80,7 @@ Capacidades de escrita **não** serão habilitadas até validação explícita.
 
 ## Fora de escopo
 
-* Implementação antes da Fase 9 do roadmap.
+* Implementação antes do Epic 5 do roadmap.
 * Escrita até validação explícita.
 
 ## Estratégia de entrega (futura)

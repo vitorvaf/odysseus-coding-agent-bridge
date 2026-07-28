@@ -1,3 +1,7 @@
 <Solution>
   <Project Path="src/OcabBridge.Api/OcabBridge.Api.csproj" />
+  <Project Path="tests/OcabBridge.UnitTests/OcabBridge.UnitTests.csproj" />
+  <Project Path="tests/OcabBridge.IntegrationTests/OcabBridge.IntegrationTests.csproj" />
+  <Project Path="tests/OcabBridge.ContractTests/OcabBridge.ContractTests.csproj" />
+  <Project Path="tests/OcabBridge.SecurityTests/OcabBridge.SecurityTests.csproj" />
 </Solution>

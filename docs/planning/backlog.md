@@ -13,7 +13,7 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 ---
 
-## EPIC 0 — Discovery (Fase 0)
+## EPIC 0 — Discovery (Milestone 0)
 
 ### Capability 0.1 — Discovery técnico
 
@@ -90,7 +90,7 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **Título:** Escolher estratégia de workspace.
 
-**Objetivo:** fundamentar Fase 5.
+**Objetivo:** fundamentar Epic 2 (Capability 2.1 — Workspace isolado).
 
 **Dependências:** Slice 0.1.4.
 
@@ -102,7 +102,7 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **Título:** Validar autenticação e rede Docker.
 
-**Objetivo:** fundamentar Fase 1.
+**Objetivo:** fundamentar Epic 1.
 
 **Dependências:** Slice 0.1.1.
 
@@ -124,15 +124,15 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **ID:** SLICE-DISCOVERY-REPORT
 
-**Título:** Consolidar relatório da Fase 0.
+**Título:** Consolidar relatório do Milestone 0 (Discovery).
 
-**Objetivo:** liberar gate para Fase 1.
+**Objetivo:** liberar gate para Epic 1.
 
 **Dependências:** Slices 0.1.1 a 0.1.7.
 
 **Documentação afetada:** docs/discovery/phase-0-report.md, risk-register, ADRs conforme necessário.
 
-> **Gate para Fase 1:** todos os 13 itens do gate definidos em [`../docs/discovery/README.md`](../docs/discovery/README.md#gate-para-iniciar-a-fase-1) devem estar fechados antes de iniciar Slice 1.1.1.
+> **Gate para Epic 1:** todos os 13 itens do gate definidos em [`../docs/discovery/README.md`](../docs/discovery/README.md#gate-para-iniciar-o-epic-1) devem estar fechados antes de iniciar Slice 1.1.1.
 
 ---
 
@@ -150,7 +150,7 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **Motivação:** sem base, nenhuma fatia posterior funciona.
 
-**Dependências:** gate da Fase 0.
+**Dependências:** gate do Milestone 0 (Discovery).
 
 **Escopo:**
 
@@ -222,7 +222,7 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **Objetivo:** primeiro vertical realmente utilizável.
 
-**Motivação:** entregar a primeira fatia observável do OCAB (Fase 3 do roadmap).
+**Motivação:** entregar a primeira fatia observável do OCAB (Slice 1.1.3 do Epic 1).
 
 **Dependências:** Slices 1.1.1 e 1.1.2, mais PoC validada em [`../docs/discovery/003-opencode-container-poc.md`](../docs/discovery/003-opencode-container-poc.md).
 
@@ -269,7 +269,7 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **Objetivo:** finalizar ferramentas e qualidades contratuais.
 
-**Motivação:** Fase 4 do roadmap.
+**Motivação:** Slice 1.1.4 do Epic 1.
 
 **Dependências:** Slice 1.1.3.
 
@@ -691,17 +691,8 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 ## Próximo slice recomendado
 
-**Nenhuma implementação deve ser iniciada.**
+**Estabilização do Epic 1 (gate atual) — em fechamento.**
 
-A próxima entrega é **exclusivamente documental e de discovery técnico** da Fase 0:
+O PR `chore(stabilization): close Phase 1 runtime and quality gates` (branch `phase-1-mvp`) está em curso. Após o merge, o próximo slice de implementação será o **SLICE-WORKSPACE-001 (Slice 2.1.1 — Workspace Manager)**, definido neste backlog sob `Epic 2 / Capability 2.1 — Workspace isolado`.
 
-* Slice 0.1.1 — Environment baseline.
-* Slice 0.1.2 — MCP SDK evaluation.
-* Slice 0.1.3 — OpenCode container PoC.
-* Slice 0.1.4 — Repository pilot selection.
-* Slice 0.1.5 — Workspace strategy evaluation.
-* Slice 0.1.6 — Authentication and networking.
-* Slice 0.1.7 — Process execution evaluation.
-* Slice 0.1.8 — Phase 0 report.
-
-A Fase 1 (Foundation) só inicia quando o gate definido em [`../docs/discovery/README.md`](../docs/discovery/README.md#gate-para-iniciar-a-fase-1) estiver fechado.
+O Milestone 0 (Discovery) já está fechado conforme [`../docs/discovery/phase-0-report.md`](../docs/discovery/phase-0-report.md); o gate para iniciar o Epic 1 também já foi superado (slices 1.1.1 a 1.1.4 entregues). O gate de estabilização em fechamento é o que precede a transição do Epic 1 para o Epic 2.

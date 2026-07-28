@@ -6,11 +6,11 @@
 
 | Item | Estado |
 | --- | --- |
-| Implementação | **Não iniciada** |
+| Implementação | **Em curso** (slices 1.1.1–1.1.4 do Epic 1 entregues; stabilization gate ativo) |
 | Especificação | Em construção |
-| MVP | Planejado |
+| MVP | Planejado pós-stabilization-gate |
 
-Este repositório contém **apenas documentação** até nova instrução explícita. Não crie código de produção, migrations reais, configurações de deploy, scripts destrutivos ou integrações ao vivo sem autorização.
+Este repositório contém **código de produção dos slices 1.1.1 a 1.1.4 do Epic 1** além da documentação. O stabilization gate desta entrega está em curso na branch `phase-1-mvp`. Dentro do escopo já autorizado (testes automatizados, CI, LICENSE, ADR-0016, validação OpenCode real e correções documentais), a criação de código é permitida. Código novo fora desses escopos continua exigindo autorização explícita por ADR ou instrução de sessão registrada.
 
 ## Missão do agente
 

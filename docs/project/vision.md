@@ -69,5 +69,5 @@ O OCAB surge para preencher esse espaço sem substituir o agente: ele adiciona u
 ## Próximo passo recomendado
 
 * Concluir o ciclo de revisão da documentação atual.
-* Validar a Fase 0 do roadmap (Discovery) antes de iniciar implementação.
+* Validar o Milestone 0 do roadmap (Discovery) antes de iniciar implementação.
 * Aguardar autorização explícita para iniciar o slice vertical mínimo (read-only com OpenCode).
