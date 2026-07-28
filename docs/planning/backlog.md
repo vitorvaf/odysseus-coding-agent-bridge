@@ -306,6 +306,73 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 ---
 
+### Capability 1.2 — Estabilização da Fase 1
+
+#### Slice 1.2.1 — Align OpenCode Upstream Contract
+
+**ID:** SLICE-STAB-002
+
+**Título:** Alinhar o `OpenCodeAdapter` ao OpenAPI emitido pela versão fixada do OpenCode.
+
+**Objetivo:** Selecionar e fixar uma versão compatível do OpenCode, alinhar o `OpenCodeAdapter` ao OpenAPI publicado por essa versão e comprovar o lifecycle read-only completo por testes e smoke test real.
+
+**Motivação:** o adapter atual e a Spec 005 assumem rotas no plural (`/sessions`, `/sessions/{id}/prompt`, `/sessions/{id}/cancel`) que o OpenCode Server real não implementa — as rotas oficiais estão no singular (`/session`, `/session/{id}/prompt_async`, `/session/{id}/abort`, `/event`, `/global/health`). Sem alinhamento, o caminho principal `cliente MCP → bridge → OpenCode → repositório piloto` não funciona end-to-end.
+
+**Dependências:** Slice 1.1.4 (MCP Contract Completion); commits `2d5932c` e `f3e08f2` da stabilization gate inicial (qualidade + descoberta).
+
+**Escopo:**
+
+* Contract spike comparativo entre OpenCode v1.17.20 (já validado em host) e v1.18.8 (release oficial de 2026-07-28) — captura de OpenAPI em `/doc`, validação de rotas de sessão, prompt, cancelamento, eventos, autenticação, content-types, códigos HTTP.
+* Decisão de versão alvo via ADR-0017 (`Status: Proposed` → `Accepted` somente após smoke test ponta a ponta verde).
+* Atualização da Spec 005 para refletir a versão fixada, lifecycle, autenticação, cancelamento, timeout, eventos, erros, content-types aceitos, comportamento diante de HTML inesperado e estratégia de upgrade.
+* Correção do `poc/opencode-container/Dockerfile` para fail-fast (`SHELL ["/bin/bash", "-o", "pipefail", "-c"]`, `set -eux`, `command -v opencode`, `opencode --version` no build, sem bind-mount do binário do host).
+* Atualização do `src/OcabBridge.Api/Adapters/OpenCodeAdapter.cs` para usar exclusivamente rotas comprovadas pelo OpenAPI, enviar Basic Auth via `OPENCODE_SERVER_PASSWORD`, validar `Content-Type`, rejeitar HTML como `UpstreamContractMismatch`, suportar cancelamento, aplicar timeout, correlacionar sessão e `runId`, normalizar erros sem vazar corpo sensível e registrar versão upstream + checksum do contrato.
+* Substituição dos `PlaceholderTests` por testes de contrato e integração reais em `tests/OcabBridge.ContractTests/` e `tests/OcabBridge.IntegrationTests/`.
+* Smoke test ponta a ponta documentado em `docs/discovery/012-…` cobrindo: cliente MCP → `run_create` → bridge → OpenCode fixado → sessão real → prompt read-only → eventos → relatório; também `run_cancel`, timeout, runner indisponível, credencial inválida e resposta incompatível.
+
+**Fora de escopo:**
+
+* Atualização do `OpenCodeAdapter` para workspace-write (escopo do Epic 2 / SLICE-WORKSPACE-001).
+* Code generation a partir do OpenAPI sem antes validar o spike — a decisão entre client manual, gerado ou sidecar TS fica registrada na ADR-0017.
+* Push, merge, abertura ou atualização de PR.
+
+**Bloqueia:**
+
+* Fechamento da `OQ-200` (Estabilização do Epic 1).
+* Fechamento da `OQ-201` (contract drift entre `OpenCodeAdapter` e OpenCode Server real).
+* Início do `SLICE-WORKSPACE-001` (Slice 2.1.1 — Workspace Manager).
+
+**Critérios de aceite (gate completo):**
+
+* [ ] Target version fixada com tag + digest quando disponível.
+* [ ] OpenAPI capturado em `/doc` da versão fixada.
+* [ ] `ADR-0017` com `Status: Accepted`.
+* [ ] Spec 005 atualizada referenciando o OpenAPI capturado.
+* [ ] Dockerfile fail-fast (build aborta se install falhar; `command -v opencode` e `opencode --version` validados no build).
+* [ ] Runner não root, `cap_drop: ALL`, sem Docker socket, sem bind-mount do binário do host.
+* [ ] `OpenCodeAdapter` alinhado às rotas comprovadas, com Basic Auth, validação de `Content-Type`, rejeição de HTML como `UpstreamContractMismatch` e normalização de erros.
+* [ ] Testes de contrato reais cobrindo health, sessão, prompt, cancel, eventos, Basic Auth, desserialização JSON, rejeição de HTML e normalização de 401/404/409/429/5xx, timeout e cancelamento.
+* [ ] Testes de integração reais cobrindo subida do Compose, health do runner, criação de sessão via bridge, prompt read-only, persistência de eventos, cancelamento, timeout, restart do runner e repositório piloto inalterado.
+* [ ] Smoke test documentado com evidência ponta a ponta.
+* [ ] CI verde em todos os lanes.
+* [ ] `OQ-200` fechada com referência ao smoke test.
+* [ ] `OQ-201` fechada com referência ao smoke test.
+
+**Validações:**
+
+* Unitários: adapter (rotas, headers, desserialização, erros, timeout).
+* Contrato: HTTP contra o OpenCode fixado no runner (Testcontainers ou runner local).
+* Integração: bridge + Postgres + OpenCode real via docker compose.
+* Segurança: Basic Auth enviado, credenciais fora do repo, runner não root.
+
+**Riscos:**
+
+* Mudança de comportamento entre versões do OpenCode exige revisitar `ADR-0017`.
+* Versões `:latest` ou sem digest podem introduzir drift silencioso — política fixada em tag + digest.
+* Sidecar TypeScript adiciona dependência runtime Node não justificada no MVP — `ADR-0017` deve justificar a escolha entre client manual, gerado e sidecar.
+
+**Documentação afetada:** este backlog, `docs/adr/0017-pin-opencode-version.md`, `docs/specs/005-opencode-runner/spec.md`, `docs/discovery/012-…` (smoke test), `docs/open-questions.md` (fechamento de `OQ-200` e `OQ-201`).
+
 ## EPIC 2 — MVP Workspace-Write
 
 ### Capability 2.1 — Workspace isolado
