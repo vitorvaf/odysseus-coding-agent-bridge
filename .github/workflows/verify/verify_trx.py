@@ -3,8 +3,18 @@
 Verify that a TRX (xUnit/vstest results) file corresponds to a passing
 test run. Used as a CI gate: exits non-zero whenever:
 - the TRX file is missing,
-- the <Counters> block reports failed > 0 or error > 0,
-- the counters do not sum to the total (sanity check).
+- the file has no <UnitTestResult> entries,
+- any individual test has outcome "Failed" or "Error" (or any other
+  failure outcome xUnit/vstest may surface — see FAIL_OUTCOMES).
+
+Unlike the previous version that compared <Counters> attribute
+sums, this version counts UnitTestResult outcomes directly. xUnit
+Skipped tests are reported with outcome "NotExecuted" (or
+"NotRunnable") at the UnitTestResult level and the <Counters> element
+sometimes does not include them in its "skipped" / "notExecuted"
+attributes (vstest bug across versions). Counting outcomes directly
+is the only reliable way to derive "executed vs skipped vs failed"
+from the TRX.
 
 Usage: verify_trx.py <path-to-trx-file>
 """
@@ -12,6 +22,7 @@ from __future__ import annotations
 
 import sys
 import xml.etree.ElementTree as ET
+from collections import Counter
 from pathlib import Path
 
 # TRX namespaces — Visual Studio Team Test 2010 and 2012 schemas are
@@ -21,22 +32,41 @@ NS_CANDIDATES = (
     "{http://microsoft.com/schemas/VisualStudio/TeamTest/2012}",
 )
 
+# Outcomes that indicate a test run failure. A pass outcome is
+# "Passed"; everything else is a problem (or skip / no-op).
+FAIL_OUTCOMES = frozenset({
+    "Failed",
+    "Error",
+    "Timeout",
+    "Aborted",
+    "NotRunnable",   # xUnit may surface a hard skip as this
+    "Inconclusive",
+    "Warning",       # depends on runner; treat as soft failure
+})
 
-def find_counters(root: ET.Element) -> ET.Element | None:
+# Outcomes that count as "skipped" / "did not run". They must NOT
+# fail the gate, but they are NOT a hard pass either.
+SKIP_OUTCOMES = frozenset({
+    "NotExecuted",
+    "Ignored",
+    "Inconclusive",
+})
+
+
+def find_unit_test_results(root: ET.Element):
     for ns in NS_CANDIDATES:
-        node = root.find(f".//{ns}Counters")
-        if node is not None:
-            return node
+        results = root.findall(f".//{ns}UnitTestResult")
+        if results:
+            return results
+    return root.findall(".//UnitTestResult")
+
+
+def find_counters(root: ET.Element):
+    for ns in NS_CANDIDATES:
+        counters = root.find(f".//{ns}Counters")
+        if counters is not None:
+            return counters
     return root.find(".//Counters")
-
-
-def parse_int(value: str | None) -> int:
-    if value is None:
-        return 0
-    try:
-        return int(value)
-    except ValueError:
-        return 0
 
 
 def main() -> int:
@@ -56,46 +86,34 @@ def main() -> int:
         return 1
 
     root = tree.getroot()
-    counters = find_counters(root)
-    if counters is None:
-        print(f"::error::No <Counters> block found in {trx_path}")
+    results = find_unit_test_results(root)
+    if not results:
+        print(f"::error::No <UnitTestResult> entries found in {trx_path}")
         return 1
 
-    total = parse_int(counters.attrib.get("total"))
-    passed = parse_int(counters.attrib.get("passed"))
-    failed = parse_int(counters.attrib.get("failed"))
-    errored = parse_int(counters.attrib.get("error"))
-    skipped_raw = counters.attrib.get("skipped") or counters.attrib.get("skippedAborted")
-    skipped = parse_int(skipped_raw if skipped_raw is not None else None)
-    aborted = parse_int(counters.attrib.get("aborted"))
-    inconclusive = parse_int(counters.attrib.get("inconclusive"))
-    not_runnable = parse_int(counters.attrib.get("notRunnable"))
-    not_executed = parse_int(counters.attrib.get("notExecuted"))
+    outcomes = Counter(r.attrib.get("outcome", "?") for r in results)
+    total = sum(outcomes.values())
 
     if total == 0:
         print(f"::error::TRX reports zero tests executed ({trx_path})")
         return 1
 
-    sum_counted = passed + failed + errored + skipped + aborted + inconclusive + not_runnable + not_executed
-    if sum_counted != total:
+    failed = sum(c for o, c in outcomes.items() if o in FAIL_OUTCOMES)
+    if failed > 0:
+        # Show a compact summary of non-pass outcomes.
+        breakdown = ", ".join(
+            f"{o}={c}" for o, c in outcomes.items() if o != "Passed"
+        )
         print(
-            f"::error::TRX counters inconsistent: total={total} but "
-            f"passed={passed} failed={failed} error={errored} skipped={skipped} "
-            f"aborted={aborted} inconclusive={inconclusive} notRunnable={not_runnable} "
-            f"notExecuted={not_executed} sum={sum_counted}"
+            f"::error::{trx_path}: {failed} non-pass outcomes "
+            f"({breakdown}) (total={total}, passed={outcomes.get('Passed', 0)})"
         )
         return 1
 
-    if failed > 0 or errored > 0:
-        print(
-            f"::error::{trx_path}: {failed} failed and {errored} errored "
-            f"(total={total}, passed={passed})"
-        )
-        return 1
-
+    skipped = sum(c for o, c in outcomes.items() if o in SKIP_OUTCOMES)
     print(
-        f"OK {trx_path}: total={total} passed={passed} skipped={skipped} "
-        f"failed={failed} error={errored} aborted={aborted}"
+        f"OK {trx_path}: total={total} passed={outcomes.get('Passed', 0)} "
+        f"skipped={skipped} failed=0"
     )
     return 0
 
