@@ -58,7 +58,6 @@ jobs:
           --results-directory ./artifacts/unit
 
       - name: verify unit test results
-        needs: unit-tests
         if: always()
         run: |
           python3 .github/workflows/verify/verify_trx.py \
@@ -75,7 +74,6 @@ jobs:
           --results-directory ./artifacts/contract
 
       - name: verify contract test results
-        needs: contract-tests
         if: always()
         run: |
           python3 .github/workflows/verify/verify_trx.py \
@@ -92,7 +90,6 @@ jobs:
           --results-directory ./artifacts/integration
 
       - name: verify integration test results
-        needs: integration-tests
         if: always()
         run: |
           python3 .github/workflows/verify/verify_trx.py \
@@ -109,7 +106,6 @@ jobs:
           --results-directory ./artifacts/security
 
       - name: verify security test results
-        needs: security-tests
         if: always()
         run: |
           python3 .github/workflows/verify/verify_trx.py \
