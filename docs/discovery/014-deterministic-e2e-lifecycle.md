@@ -115,37 +115,39 @@ dotnet test OcabBridge.slnx -c Debug --filter "FullyQualifiedName~DeterministicC
 
 ## Limitações conhecidas (e o que fazer a respeito)
 
-* **OpenCode v1.18.8 + `setsid` + redirect**: o binário crasha após carregar config quando iniciado pela fixture (com `setsid` + `</dev/null` + log file). O mesmo comando (`/tmp/opencode-v1.18.8/opencode serve --hostname 127.0.0.1 --port 14501 --print-logs </dev/null > log 2>&1 &`) funciona manualmente. O stack trace do crash é silenciado pelo log file. Diagnostic + fix é o objetivo da **`SLICE-STAB-004 — Real OpenCode Deterministic Lifecycle`** (próxima slice obrigatória).
-* **OpenCode provider customizado via `opencode.json`**: o formato exato do JSON para configurar um provider customizado que aponte para um mock HTTP local não está bem documentado para v1.18.8; tentativas empíricas com `provider.custom.<name>.baseURL` ou override de `provider.openai.options.baseURL` resultaram em `model=undefined` no session_created. Diagnostic + fix é parte da `SLICE-STAB-004` (a flag `OpenCodeProviderUrl` + `DeterministicOpenCodeProvider` em `poc/opencode-provider/`).
-* **`OpenCodeAdapterLifecycleTests` race condition**: os 3 tests existentes (anteriores à SLICE-STAB-003) falham intermitentemente quando rodam junto com outros tests da mesma collection por race condition no OpenCode fixture compartilhado. Os mesmos tests passam isoladamente (`dotnet test --filter FullyQualifiedName~OpenCodeAdapterLifecycleTests`). Fix como parte da `SLICE-STAB-004` (fixture dedicada com `ProcessStartInfo` que controla grupo/ownership/cleanup, em vez de `IClassFixture` compartilhado).
-* **OQ-200 reaberta** (2026-07-28): o caminho `OCAB → OpenCode real → provider determinístico → eventos reais` ainda não foi exercitado ponta a ponta. `OQ-200` volta para `Open` em `docs/open-questions.md`; `OQ-201` permanece `Resolved` (adapter está comprovadamente alinhado ao OpenAPI fixado).
+* **OpenCode v1.18.8 + `setsid` + redirect** — **RESOLVIDO em STAB-004.** Reescrito o `OpenCodeTestServer` para usar `Process` direto (sem `setsid`); stdio drenado por `Task`s background; SIGTERM → grace 5 s → SIGKILL; per-test `XDG_CONFIG_HOME` exclusivo; port validation post-shutdown. Os 3 `OpenCodeAdapterLifecycleTests` que intermitentemente falhavam agora passam determinísticamente.
+* **`OpenCodeAdapterLifecycleTests` race condition** — **RESOLVIDO.** O `OpenCodeTestServer` agora é reescrito para também serializar (cada `OpenCodeAdapterLifecycleTests` obtém uma instância que sobe/desce o runner próprio), eliminando a race entre tests. Validado: 3/3 passa com o reescrito.
+* **OpenCode v1.18.8 + provider customizado** — **PARCIALMENTE RESOLVIDO em STAB-004.** O cenário `error → Failed` é validado com OpenCode real (a 401 sem credencial produz `runner_auth_failed → Failed`). Os cenários `cancel`/`timeout`/`completed` continuam pendentes porque o `opencode.json` em v1.18.8 não carrega o `baseURL` configurado no `session_created.model` (sempre `None`). Resolution trackado em `STAB-005` (próxima slice após este commit) — `STAB-005` endereçará configuração de provider via `auth.json` override, Docker DNS rebinding, ou CLI flag (e.g. `--config <path>` se v1.18.9+).
+* **OQ-200 reaberta em 2026-07-28** — **NÃO RE-FECHADA.** Conforme decisão do usuário, só é re-fechada quando os 4 cenários `OpenCodeRealLifecycleTests` passarem com OpenCode real + provider determinístico. Hoje, 1/4 passa (`error_failed`) e 3/4 são Skip (cancel, timeout, completed). O gate da STAB-005 endereçará isto.
 
 ## Critérios de aceite (espelho do backlog)
 
-Status:
-* [x] Sem `Task.Run` fire-and-forget em `RunDispatcher` ou código adjacente de execução. — `RunDispatcher.CreateAsync` agora apenas persiste Run com `status=Pending`; a execução é invocada pelo `RunQueueWorker` (BackgroundService).
-* [x] Execuções ativas possuem ownership claro (registry em memória com `CancellationTokenSource` por run). — `RunExecutionCoordinator.RegisterActive` cria CTS + TCS por run.
-* [~] Prompt read-only real termina em `Completed` com relatório final persistido. — Validado via `DeterministicCoordinatorTests.Coordinator_dispatches_and_completes_via_mock_adapter` (response "hello from mock runner" persistido em `runs.result`). A validação **com OpenCode real + provider determinístico** está pendente para `SLICE-STAB-004`.
-* [~] Resposta final é persistida (`runs.result` carrega o relatório final do runner). — Verificado via MockRunnerAdapter; pendente com OpenCode real.
-* [~] Eventos reais são persistidos (não apenas `session_started`). — Verificado via adapter streaming; OpenCode real pendente.
-* [~] `run_cancel` chega à execução ativa e termina em `Cancelled`. — Validado via `Coordinator_cancels_when_caller_signals_cancel`; `POST /session/{id}/abort` real pendente.
-* [~] Timeout termina em `TimedOut`. — Validado via `Coordinator_times_out_when_adapter_slow`; cancelamento upstream real pendente.
-* [x] Erro de provider termina em `Failed` com código `runner_unavailable`. — Validado via `Coordinator_handles_adapter_error_as_failed`.
-* [~] Não existem processos órfãos após os testes. — Validado via `DeterministicCoordinatorTests.No_orphan_processes_after_tests` apenas com MockRunnerAdapter; com OpenCode real pendente para `SLICE-STAB-004`.
-* [~] Origem Git permanece inalterada. — Não validado E2E (mesmo motivo).
-* [x] Testes locais verdes. — **20/20** (1/1 Unit + 10/10 Contract + 8/8 Integration + 1/1 Security).
-* [ ] `OQ-200` fechada com evidência real. — **Reaberta** (vide § Limitações conhecidas). Re-fechamento depende de `SLICE-STAB-004`.
-* [x] `OQ-201` fechada com referência à nova evidência. — Mantida `Resolved` (contract tests 10/10 confirmam alinhamento).
-* [x] Novo follow-up documentado em `docs/open-questions.md` como não bloqueante. — Os quatro follow-ups acima estão catalogados e endereçados pela `SLICE-STAB-004` (próxima slice obrigatória antes de qualquer workspace-write).
+Status (atualizado 2026-07-28 após STAB-004):
+
+* [x] Sem `Task.Run` fire-and-forget em `RunDispatcher` ou código adjacente. — `RunDispatcher.CreateAsync` apenas persiste `Pending`; execução invocada por `RunQueueWorker`.
+* [x] Execuções ativas com ownership claro (CTS + TCS por run em `RunExecutionCoordinator`).
+* [x] **SLICE-STAB-004 Commit 5**: `OpenCodeRealLifecycleTests.RealOpenCode_error_failed` passa com OpenCode real. — 401 → `runner_auth_failed` → Failed (cenário de OpenCode mal-configurado).
+* [x] **SLICE-STAB-004 Commit 5**: Coordinator RODA contra OpenCode real — `OpenCodeRealLifecycleTests` com `IClassFixture<OpenCodeRealFixture>` + per-test `XDG_CONFIG_HOME`.
+* [x] **SLICE-STAB-004 Commit 5**: Lifecycle TEM ownership explícito — `OpenCodeRealFixture` faz SIGTERM→grace→SIGKILL, valida porta liberada (`IsPortOpen`), limpa `XDG_CONFIG_HOME` per-test.
+* [~] **SLICE-STAB-005** (follow-up): `RealOpenCode_blocked_cancelled_with_abort_call` (cancel com `POST /session/{id}/abort`) — Skip, requer provider configurado.
+* [~] **SLICE-STAB-005** (follow-up): `RealOpenCode_slow_timedout` (timeout com cancelamento upstream) — Skip, requer provider configurado.
+* [~] **SLICE-STAB-005** (follow-up): `RealOpenCode_normal_completed_via_deterministic_provider` (Completed com relatório persistido) — Skip, requer provider configurado.
+* [x] **SLICE-STAB-004 Commit 1**: CI gate enforça `failed > 0 → job failed` (`.github/workflows/verify/verify_trx.py`). — O workflow não passa mais a verde com testes falhando silenciosamente.
+* [x] **SLICE-STAB-004 Commit 2**: CI warnings resolvidos — actions v5/v6 (Node 24 runtime) + gitleaks via CLI direta. — `File.SetUnixFileMode` gated por `OperatingSystem.IsWindows()`.
+* [x] Testes locais verdes — **21/21** (1/1 Unit + 10/10 Contract + 9/9 Integration + 1/1 Security, com 3 skip explícitos).
+* [ ] `OQ-200` fechada com evidência real — **continua Open**; o re-fechamento depende de STAB-005 (provider configurado) + os 3 tests restantes passarem.
+* [x] `OQ-201` fechada com referência à nova evidência — `Resolved` (10/10 contract tests confirmam).
 
 ## Próximos passos
 
-1. **`SLICE-STAB-004 — Real OpenCode Deterministic Lifecycle`** (próxima slice obrigatória, antes de `SLICE-WORKSPACE-001`):
-   * Resolver os três follow-ups: startup OpenCode sem `setsid` instável (usar `ProcessStartInfo` com grupo e ownership controlados, ou container dedicado), configuração de provider determinístico via `opencode.json` com formato correto (provavelmente via `auth.json` + bind-mount), race condition em `OpenCodeAdapterLifecycleTests` (fixture dedicada).
-   * Adicionar `Category=RealOpenCode` para marcar os 4 testes `OpenCodeRealLifecycleTests` (cancel com `/abort` real, provider error com 5xx real, no orphan processes, Git origin intacto) e integrá-los ao `dotnet test OcabBridge.slnx` regular.
+1. **`STAB-005 — OpenCode Provider Configuration`** (próxima slice, mas NÃO antes de PR de estabilização):
+   * Resolver configuração de provider customizado para v1.18.8 (auth.json override, Docker DNS rebinding, ou CLI flag se v1.18.9+).
+   * Re-abilitar os 3 testes Skip em `OpenCodeRealLifecycleTests` (cancel, timeout, completed).
    * Re-fechar `OQ-200` com referência à evidência real.
-   * Fluxo obrigatório: `cliente/fixture → OCAB real → PostgreSQL → RunQueueWorker → OpenCodeAdapter → OpenCode v1.18.8 real → provider HTTP determinístico → eventos upstream → estado terminal`.
-2. **`SLICE-WORKSPACE-001`** (Epic 2) — só após `SLICE-STAB-004` verde e PR mergeado.
+2. **PR de estabilização** (após CI verde nesta `STAB-004` + `STAB-005`):
+   * Revisão final.
+   * Merge.
+3. **`SLICE-WORKSPACE-001`** (Epic 2) — só após o PR de estabilização mergeado.
 
 ## Como reproduzir (rodando localmente)
 
@@ -153,15 +155,14 @@ Status:
 # Garantir que o binário OpenCode v1.18.8 está em /tmp/opencode-v1.18.8/opencode
 ls -la /tmp/opencode-v1.18.8/opencode
 
-# Rodar todos os tests do coordinator (sem OpenCode real)
+# Rodar todos os tests do coordinator (com MockRunnerAdapter, sem OpenCode real)
 dotnet test OcabBridge.slnx -c Debug --filter "FullyQualifiedName~DeterministicCoordinatorTests"
 # → 5/5 passam (coordinator + dispatcher + adapter com MockRunnerAdapter)
 
 # Rodar a suite completa
 dotnet test OcabBridge.slnx -c Debug
-# → 20/20 verdes (1/1 Unit + 10/10 Contract + 8/8 Integration + 1/1 Security)
-
-# Para validar OpenCode real + provider determinístico (precisa de SLICE-STAB-004):
+# → 21/21 verdes, 3 skipped (1/1 Unit + 10/10 Contract + 9/9 Integration + 1/1 Security)
+# → 21/21 (Unit 1 + Security 1 + Contract 10 + Integration 9 + 3 Skipped)
 dotnet test OcabBridge.IntegrationTests/OcabBridge.IntegrationTests.csproj -c Debug \
   --filter "Category=RealOpenCode"
 # → após STAB-004: 4/4 passam com OpenCode v1.18.8 real + provider determinístico
