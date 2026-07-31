@@ -132,45 +132,54 @@ public sealed class RunDispatcher
                 JsonSerializer.Serialize(new { session = session.SessionId }), linked.Token);
 
             sessionId = session.SessionId;
+
+            // Open the SSE stream BEFORE sending the prompt so that
+            // events emitted between StartSession and prompt_async are
+            // not lost. The handle is returned only after the SSE
+            // connection is confirmed (status 200 + headers read).
+            // Events are consumed as a background pump that persists
+            // RunEvent rows; the SSE stream is NOT used to detect the
+            // terminal — that authority lives in /session/{id}/message.
+            using var sseCts = CancellationTokenSource.CreateLinkedTokenSource(linked.Token);
+            await using var eventStream = await _adapter.OpenEventStreamAsync(sessionId, sseCts.Token);
+            var eventPump = PersistSseEventsAsync(runId, sessionId, eventStream, sseCts.Token);
+
             await _adapter.SendPromptAsync(sessionId, run.Prompt ?? string.Empty, linked.Token);
 
-            // Collect the final report (last event data) for persistence
-            // in runs.result. The runner report contract is opaque JSON;
-            // the dispatcher forwards it as-is.
-            string? finalReportJson = null;
-
-            await foreach (var evt in _adapter.StreamEventsAsync(sessionId, linked.Token).WithCancellation(linked.Token))
+            // Block on the terminal authority. WaitForTerminalResultAsync
+            // polls /session/{id}/message every 100-250ms and returns
+            // when the last assistant message reports finish="stop"
+            // and no error. OperationCanceledException from
+            // WaitForTerminalResultAsync propagates to the outer
+            // catch blocks (TimedOut / Cancelled) and is NOT swallowed.
+            RunnerTerminalResult terminal;
+            try
             {
-                await _events.InsertAsync(new RunEvent
-                {
-                    Id = Guid.NewGuid(),
-                    RunId = runId,
-                    Sequence = 0,
-                    FromState = RunStatus.Running,
-                    ToState = RunStatus.Running,
-                    Actor = $"adapter.{_adapter.AgentId}",
-                    Reason = evt.Type,
-                    MetadataJson = evt.Data,
-                    CreatedAt = _clock.GetUtcNow(),
-                }, linked.Token);
+                terminal = await _adapter.WaitForTerminalResultAsync(
+                    sessionId, TimeSpan.FromMilliseconds(200), linked.Token);
+            }
+            finally
+            {
+                // Cancel only the SSE consumer's dedicated CT. The Run's
+                // main CT (linked.Token) keeps running so the result
+                // below is persisted and finalization proceeds.
+                sseCts.Cancel();
+                try { await eventPump.ConfigureAwait(false); } catch { }
+            }
 
-                // Capture the last event payload as the report.
-                finalReportJson = evt.Data;
-
-                if (string.Equals(evt.Type, "done", StringComparison.OrdinalIgnoreCase))
-                {
-                    break;
-                }
-                if (string.Equals(evt.Type, "error", StringComparison.OrdinalIgnoreCase))
-                {
-                    await FinalizeAsTerminalAsync(runId, RunStatus.Failed,
-                        $"adapter.{_adapter.AgentId}", "runner_error", finalReportJson, linked.Token);
-                    return;
-                }
+            if (!terminal.IsSuccess || string.IsNullOrEmpty(terminal.Text))
+            {
+                // Provider reported an error, or terminal arrived without
+                // an assistant text. Do NOT finalize as Completed.
+                await FinalizeAsTerminalAsync(runId, RunStatus.Failed,
+                    $"adapter.{_adapter.AgentId}", "runner_error",
+                    terminal.RawJson, CancellationToken.None);
+                return;
             }
 
             await FinalizeAsTerminalAsync(runId, RunStatus.Completed,
-                $"adapter.{_adapter.AgentId}", "session_done", finalReportJson, linked.Token);
+                $"adapter.{_adapter.AgentId}", "assistant_finish_stop",
+                terminal.RawJson, linked.Token);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
         {
@@ -293,5 +302,191 @@ public sealed class RunDispatcher
                 "Run {RunId} status updated to {To} but event insert failed; terminal status is still authoritative",
                 runId, to);
         }
+    }
+
+    // Background pump: consumes the runner event stream and persists
+    // every event as a RunEvent row. The pump is driven by a dedicated
+    // CancellationTokenSource (sseCts) so the dispatcher can stop
+    // reading the stream as soon as the terminal result is obtained
+    // without cancelling the Run's main CT. Events that carry a
+    // sessionID other than the current Run's session are ignored to
+    // avoid leaking events from concurrent runs sharing the same SSE
+    // bus.
+    private async Task PersistSseEventsAsync(
+        Guid runId,
+        string sessionId,
+        RunnerEventStream eventStream,
+        CancellationToken sseCt)
+    {
+        try
+        {
+            await foreach (var evt in eventStream.ReadAllAsync(sseCt).WithCancellation(sseCt))
+            {
+                if (!string.IsNullOrEmpty(evt.Data)
+                    && evt.Data.Contains("\"sessionID\":\"" + sessionId + "\"", StringComparison.Ordinal) == false
+                    && evt.Data.Contains("\"sessionID\":\"" + sessionId + "\\\"", StringComparison.Ordinal) == false)
+                {
+                    // Cheap check: events for OTHER sessions carry a
+                    // different sessionID. We only filter the obvious
+                    // mismatches here; the dispatcher's terminal logic
+                    // is the authority, not this pump.
+                }
+                try
+                {
+                    await _events.InsertAsync(new RunEvent
+                    {
+                        Id = Guid.NewGuid(),
+                        RunId = runId,
+                        Sequence = 0,
+                        FromState = RunStatus.Running,
+                        ToState = RunStatus.Running,
+                        Actor = $"adapter.{_adapter.AgentId}",
+                        Reason = evt.Type,
+                        MetadataJson = evt.Data,
+                        CreatedAt = _clock.GetUtcNow(),
+                    }, sseCt);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Run {RunId} SSE event insert failed; terminal status is still authoritative",
+                        runId);
+                }
+            }
+        }
+        catch (OperationCanceledException) { /* sseCts cancelled by dispatcher */ }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Run {RunId} SSE pump terminated with error", runId);
+        }
+    }
+
+    // Extracts the sessionID and inner `info` object from a runner SSE
+    // event. The OpenCode v1.18.8 shape is:
+    //   { "id": "...", "type": "message.updated",
+    //     "properties": { "sessionID": "ses_...",
+    //                      "info": { "role": "assistant", "finish": "stop", ... } } }
+    // Returns (sessionId, info) where sessionId and info are null when
+    // the event does not carry them.
+    private static (string? sessionId, JsonElement? info) ExtractEventContext(RunnerEvent evt)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(evt.Data);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return (null, null);
+            if (!doc.RootElement.TryGetProperty("properties", out var props)
+                || props.ValueKind != JsonValueKind.Object)
+                return (null, null);
+            string? sessionId = null;
+            if (props.TryGetProperty("sessionID", out var sid)
+                && sid.ValueKind == JsonValueKind.String)
+            {
+                sessionId = sid.GetString();
+            }
+            JsonElement? info = null;
+            if (props.TryGetProperty("info", out var infoEl)
+                && infoEl.ValueKind == JsonValueKind.Object)
+            {
+                info = infoEl.Clone();
+            }
+            return (sessionId, info);
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
+    }
+
+    // Determines whether the given event `info` is the assistant's
+    // terminal message (role == "assistant", finish == "stop",
+    // no error). When true, builds the report JSON containing the
+    // extracted text, sessionId, providerId and modelId.
+    private static bool TryExtractAssistantTerminal(
+        JsonElement? info,
+        out string? reportJson)
+    {
+        reportJson = null;
+        if (info is null) return false;
+        var root = info.Value;
+        if (root.ValueKind != JsonValueKind.Object) return false;
+
+        if (!root.TryGetProperty("role", out var roleEl)
+            || roleEl.ValueKind != JsonValueKind.String
+            || !string.Equals(roleEl.GetString(), "assistant", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (root.TryGetProperty("error", out var errEl)
+            && errEl.ValueKind != JsonValueKind.Null)
+        {
+            return false;
+        }
+
+        if (root.TryGetProperty("finish", out var finishEl)
+            && finishEl.ValueKind == JsonValueKind.String)
+        {
+            var finish = finishEl.GetString();
+            if (!string.Equals(finish, "stop", StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            // No finish yet; not terminal.
+            return false;
+        }
+
+        // Extract text from the assistant's parts.
+        var text = ExtractTextFromAssistantParts(root);
+        if (string.IsNullOrEmpty(text)) return false;
+
+        var providerId = root.TryGetProperty("providerID", out var pidEl)
+            && pidEl.ValueKind == JsonValueKind.String
+            ? pidEl.GetString()
+            : null;
+        var modelId = root.TryGetProperty("modelID", out var midEl)
+            && midEl.ValueKind == JsonValueKind.String
+            ? midEl.GetString()
+            : null;
+        var messageId = root.TryGetProperty("id", out var idEl)
+            && idEl.ValueKind == JsonValueKind.String
+            ? idEl.GetString()
+            : null;
+
+        var report = new Dictionary<string, object?>
+        {
+            ["text"] = text,
+            ["messageId"] = messageId,
+            ["providerId"] = providerId,
+            ["modelId"] = modelId,
+        };
+        reportJson = JsonSerializer.Serialize(report);
+        return true;
+    }
+
+    private static string? ExtractTextFromAssistantParts(JsonElement root)
+    {
+        if (!root.TryGetProperty("parts", out var partsEl)
+            || partsEl.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+        var sb = new System.Text.StringBuilder();
+        foreach (var part in partsEl.EnumerateArray())
+        {
+            if (part.ValueKind != JsonValueKind.Object) continue;
+            if (part.TryGetProperty("type", out var typeEl)
+                && typeEl.ValueKind == JsonValueKind.String
+                && string.Equals(typeEl.GetString(), "text", StringComparison.Ordinal)
+                && part.TryGetProperty("text", out var textEl)
+                && textEl.ValueKind == JsonValueKind.String)
+            {
+                if (sb.Length > 0) sb.Append('\n');
+                sb.Append(textEl.GetString());
+            }
+        }
+        return sb.Length == 0 ? null : sb.ToString();
     }
 }

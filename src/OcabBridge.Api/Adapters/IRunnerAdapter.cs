@@ -22,11 +22,68 @@ public interface IRunnerAdapter
         string prompt,
         CancellationToken ct);
 
+    // Blocks until the runner reports a terminal state for the session
+    // (assistant message with finish="stop" and no error, or an error
+    // event). The implementation polls the runner's session-message
+    // endpoint; SSE is consumed separately by the dispatcher as an event
+    // pump. The returned RunnerTerminalResult is provider-agnostic.
+    Task<RunnerTerminalResult> WaitForTerminalResultAsync(
+        string sessionId,
+        TimeSpan pollInterval,
+        CancellationToken cancellationToken);
+
+    // Opens the runner event stream (e.g. SSE on /event) and returns a
+    // handle bound to a connection confirmed by the runner (headers
+    // read, status 200). The dispatcher should call this BEFORE
+    // SendPromptAsync to avoid losing early events; events are consumed
+    // as a pump to persist RunEvent rows, not for terminal detection.
+    Task<RunnerEventStream> OpenEventStreamAsync(
+        string sessionId,
+        CancellationToken ct);
+
     IAsyncEnumerable<RunnerEvent> StreamEventsAsync(
         string sessionId,
         CancellationToken ct);
 
     Task CancelAsync(string sessionId, CancellationToken ct);
+}
+
+// Provider-agnostic terminal result. The dispatcher treats IsSuccess as
+// the sole evidence that the assistant produced a final answer.
+public sealed record RunnerTerminalResult(
+    bool IsSuccess,
+    string? Text,
+    string? Error,
+    string RawJson);
+
+// Handle returned by OpenEventStreamAsync. The connection is already
+// established when this handle is returned; the dispatcher can call
+// SendPromptAsync immediately after and then iterate ReadAllAsync.
+public sealed class RunnerEventStream : IAsyncDisposable
+{
+    private readonly Func<CancellationToken, IAsyncEnumerable<RunnerEvent>> _reader;
+    public string SessionId { get; }
+
+    // Public so test mocks (in OcabBridge.TestSupport) can construct a
+    // handle that wraps a stub IAsyncEnumerable without depending on
+    // the OpenCodeAdapter internals. Production callers use
+    // OpenCodeAdapter.OpenEventStreamAsync.
+    public RunnerEventStream(
+        string sessionId,
+        Func<CancellationToken, IAsyncEnumerable<RunnerEvent>> reader)
+    {
+        SessionId = sessionId;
+        _reader = reader;
+    }
+
+    public IAsyncEnumerable<RunnerEvent> ReadAllAsync(CancellationToken ct) => _reader(ct);
+
+    public async ValueTask DisposeAsync()
+    {
+        // Best-effort cancellation hook; the reader enumerable closes
+        // the underlying stream when the caller's enumerator is disposed.
+        await Task.CompletedTask;
+    }
 }
 
 public sealed record StartSessionRequest(

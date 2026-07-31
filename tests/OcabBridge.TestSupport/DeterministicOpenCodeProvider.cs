@@ -38,6 +38,7 @@
 // stops the listener and waits for the thread to drain.
 
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -54,6 +55,10 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
     private Task? _acceptLoop;
     private string _scenario = "normal";
     private readonly ConcurrentBag<string> _requests = new();
+    private long _allRequests;
+    private long _inferenceRequests;
+    private readonly ConcurrentBag<string> _auditLog = new();
+    private string _logPath = "";
 
     public int Port { get; }
 
@@ -62,6 +67,14 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
     public TimeSpan SlowDelayMs { get; set; } = TimeSpan.FromSeconds(10);
 
     public IReadOnlyCollection<string> Requests => _requests;
+
+    public long AllRequests => Interlocked.Read(ref _allRequests);
+
+    public long InferenceRequests => Interlocked.Read(ref _inferenceRequests);
+
+    public IReadOnlyCollection<string> AuditLog => _auditLog;
+
+    public void SetLogPath(string path) => _logPath = path;
 
     public DeterministicOpenCodeProvider(int port = 14302)
     {
@@ -86,6 +99,18 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
             try { await _acceptLoop.ConfigureAwait(false); }
             catch { /* ignore */ }
         }
+        if (!string.IsNullOrEmpty(_logPath))
+        {
+            try
+            {
+                var lines = new[]
+                {
+                    $"summary all={AllRequests} inference={InferenceRequests}",
+                }.Concat(_auditLog);
+                File.WriteAllLines(_logPath, lines);
+            }
+            catch { /* ignore */ }
+        }
     }
 
     public void SetScenario(string scenario) => _scenario = scenario;
@@ -108,7 +133,39 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
     {
         try
         {
+            Interlocked.Increment(ref _allRequests);
             var path = ctx.Request.Url?.AbsolutePath ?? "/";
+            var query = ctx.Request.Url?.Query ?? "";
+            var authPresent = ctx.Request.Headers["Authorization"] != null;
+            var contentType = ctx.Request.ContentType ?? "";
+            var contentLength = ctx.Request.ContentLength64;
+            string body = "";
+            if (path.StartsWith("/v1", StringComparison.OrdinalIgnoreCase)
+                || path == "/chat/completions"
+                || path == "/responses"
+                || path.StartsWith("/control/", StringComparison.OrdinalIgnoreCase))
+            {
+                using (var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8))
+                {
+                    body = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
+                }
+            }
+            var firstLevel = ExtractFirstLevelJson(body);
+            _auditLog.Add(string.Format(CultureInfo.InvariantCulture,
+                "{0:o} method={1} path={2}{3} ct=\"{4}\" len={5} auth={6} firstLevel=[{7}]",
+                DateTimeOffset.UtcNow,
+                ctx.Request.HttpMethod,
+                path,
+                string.IsNullOrEmpty(query) ? "" : "?" + query,
+                contentType,
+                contentLength,
+                authPresent ? "yes" : "no",
+                firstLevel));
+            if (path == "/v1/chat/completions" || path == "/chat/completions"
+                || path == "/v1/responses" || path == "/responses")
+            {
+                Interlocked.Increment(ref _inferenceRequests);
+            }
             if (path == "/control/scenario" && ctx.Request.HttpMethod == "POST")
             {
                 await HandleSetScenarioAsync(ctx, ct).ConfigureAwait(false);
@@ -121,7 +178,17 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
             }
             if (path == "/v1/chat/completions")
             {
-                await HandleChatCompletionsAsync(ctx, ct).ConfigureAwait(false);
+                await HandleChatCompletionsAsync(ctx, body, ct).ConfigureAwait(false);
+                return;
+            }
+            if (path == "/v1/responses" || path == "/responses")
+            {
+                await HandleResponsesAsync(ctx, body, ct).ConfigureAwait(false);
+                return;
+            }
+            if (path == "/v1/models")
+            {
+                await HandleModelsAsync(ctx, ct).ConfigureAwait(false);
                 return;
             }
             if (path == "/control/requests")
@@ -132,11 +199,32 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
             if (path == "/control/reset")
             {
                 _requests.Clear();
+                Interlocked.Exchange(ref _allRequests, 0);
+                Interlocked.Exchange(ref _inferenceRequests, 0);
                 await WriteJsonAsync(ctx.Response, HttpStatusCode.OK, new { ok = true }).ConfigureAwait(false);
                 return;
             }
+            if (path == "/control/stats")
+            {
+                await WriteJsonAsync(ctx.Response, HttpStatusCode.OK, new
+                {
+                    all = AllRequests,
+                    inference = InferenceRequests,
+                }).ConfigureAwait(false);
+                return;
+            }
 
+            _auditLog.Add($"catchall -> 404 {path}");
             ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
+            ctx.Response.ContentType = "application/json";
+            var body404 = JsonSerializer.Serialize(new
+            {
+                error = "not_found",
+                path,
+                method = ctx.Request.HttpMethod ?? "",
+            });
+            var bytes = Encoding.UTF8.GetBytes(body404);
+            await ctx.Response.OutputStream.WriteAsync(bytes).ConfigureAwait(false);
             ctx.Response.Close();
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
@@ -148,6 +236,33 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
             }
             catch { /* ignore */ }
             _ = ex;
+        }
+    }
+
+    private static string ExtractFirstLevelJson(string body)
+    {
+        if (string.IsNullOrEmpty(body)) return "";
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return "";
+            var keys = new List<string>();
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                if (prop.Value.ValueKind == JsonValueKind.String)
+                {
+                    keys.Add($"{prop.Name}=\"{prop.Value.GetString()}\"");
+                }
+                else
+                {
+                    keys.Add($"{prop.Name}={prop.Value.ValueKind}");
+                }
+            }
+            return string.Join(",", keys);
+        }
+        catch
+        {
+            return "<invalid-json>";
         }
     }
 
@@ -182,15 +297,9 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
             .ConfigureAwait(false);
     }
 
-    private async Task HandleChatCompletionsAsync(HttpListenerContext ctx, CancellationToken ct)
+    private async Task HandleChatCompletionsAsync(HttpListenerContext ctx, string body, CancellationToken ct)
     {
-        // Capture the request for diagnostics.
-        using (var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8))
-        {
-            var body = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
-            _requests.Add(body);
-        }
-
+        _requests.Add(body);
         switch (_scenario)
         {
             case "slow":
@@ -213,6 +322,30 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
                 return;
         }
     }
+
+    private async Task HandleResponsesAsync(HttpListenerContext ctx, string body, CancellationToken ct)
+    {
+        _requests.Add("responses:" + body);
+        await DelayAndRespondNormalAsync(ctx, ct).ConfigureAwait(false);
+    }
+
+    private static async Task HandleModelsAsync(HttpListenerContext ctx, CancellationToken ct)
+    {
+        await WriteJsonAsync(ctx.Response, HttpStatusCode.OK, new Dictionary<string, object?>
+        {
+            ["object"] = "list",
+            ["data"] = new[]
+            {
+                new Dictionary<string, object?>
+                {
+                    ["id"] = "deterministic-model",
+                    ["object"] = "model",
+                    ["owned_by"] = "ocab"
+                }
+            }
+        }).ConfigureAwait(false);
+    }
+
 
     private async Task DelayAndRespondNormalAsync(HttpListenerContext ctx, CancellationToken ct)
     {
@@ -253,11 +386,12 @@ public sealed class DeterministicOpenCodeProvider : IAsyncDisposable
         response.ContentType = "text/event-stream";
         response.Headers["Cache-Control"] = "no-cache";
 
+        // Single-chunk deterministic response: the assistant returns
+        // exactly "OCAB_PROVIDER_OK" so the dispatcher can verify the
+        // provider was reached and the terminal event was captured.
         var chunks = new[]
         {
-            "{\"id\":\"chatcmpl-det-001\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"deterministic-model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"hello \"},\"finish_reason\":null}]}",
-            "{\"id\":\"chatcmpl-det-001\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"deterministic-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"world \"},\"finish_reason\":null}]}",
-            "{\"id\":\"chatcmpl-det-001\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"deterministic-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"from deterministic provider\"},\"finish_reason\":null}]}",
+            "{\"id\":\"chatcmpl-det-001\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"deterministic-model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"OCAB_PROVIDER_OK\"},\"finish_reason\":null}]}",
             "{\"id\":\"chatcmpl-det-001\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"deterministic-model\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}",
             "[DONE]"
         };
