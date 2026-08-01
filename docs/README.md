@@ -118,6 +118,7 @@ Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planni
 * [`planning/dependency-map.md`](planning/dependency-map.md) — dependências entre fases.
 * [`planning/milestones.md`](planning/milestones.md) — marcos.
 * [`planning/backlog.md`](planning/backlog.md) — backlog hierárquico.
+* [`planning/slices/SLICE-WORKSPACE-001.md`](planning/slices/SLICE-WORKSPACE-001.md) — slice operacional do Workspace Manager (Slice 2.1.1).
 * [`planning/risk-register.md`](planning/risk-register.md) — risk register.
 * [`planning/definition-of-done.md`](planning/definition-of-done.md) — definition of done.
 
@@ -138,6 +139,7 @@ Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planni
 * [`discovery/010-discovery-decisions.md`](discovery/010-discovery-decisions.md)
 * [`discovery/014-deterministic-e2e-lifecycle.md`](discovery/014-deterministic-e2e-lifecycle.md)
 * [`discovery/015-opencode-real-provider-poc.md`](discovery/015-opencode-real-provider-poc.md)
+* [`discovery/016-workspace-manager-scope.md`](discovery/016-workspace-manager-scope.md)
 
 ### Globais
 * [`open-questions.md`](open-questions.md) — questões em aberto.

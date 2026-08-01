@@ -35,9 +35,9 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | OQ-010 | Repositório piloto | Sandbox dedicado, não usar projetos sensíveis | Slice 1.1.3 | P0 | Operador | Criar fixture local em `poc/fixtures/pilot-repo` | Slug cadastrado e validado | Resolved | 0014 |
 | OQ-011 | Estratégia de workspace | Clone, worktree, copy, --reference | Epic 2 | P0 | Plataforma | POC em `docs/discovery/005-workspace-strategy-evaluation.md` | ADR substituto | Resolved | 0005 |
-| OQ-012 | Submodules | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com submódulo | Estratégia documentada | Open | — |
-| OQ-013 | Git LFS | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com LFS | Estratégia documentada | Open | — |
-| OQ-014 | Alterações locais | Detecção e tratamento | Epic 2 | P2 | Plataforma | Teste em fixture suja | Estratégia documentada | Open | — |
+| OQ-012 | Submodules | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com submódulo | Estratégia documentada | Open (estratégia: rejeitar explicitamente execuções workspace-write cujo repositório contenha `.gitmodules` ou submodules populados; ver [Discovery 016 § 4.6](discovery/016-workspace-manager-scope.md#46-postura-explícita-sobre-oq-012-oq-013-oq-014)) | — |
+| OQ-013 | Git LFS | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com LFS | Estratégia documentada | Open (estratégia: rejeitar explicitamente execuções workspace-write quando a origem contiver atributos `filter=lfs` rastreados; ver [Discovery 016 § 4.6](discovery/016-workspace-manager-scope.md#46-postura-explícita-sobre-oq-012-oq-013-oq-014)) | — |
+| OQ-014 | Alterações locais | Detecção e tratamento | Epic 2 | P2 | Plataforma | Teste em fixture suja | Estratégia documentada | Open (estratégia: rejeitar explicitamente execuções workspace-write se a origem (`Repository.urlCanonical`) estiver com working tree sujo na `baseReference`; ver [Discovery 016 § 4.6](discovery/016-workspace-manager-scope.md#46-postura-explícita-sobre-oq-012-oq-013-oq-014)) | — |
 | OQ-015 | Monorepos | Estratégia futura | Operação | P3 | Plataforma | Análise | Estratégia documentada | Open | — |
 
 ## Runners
@@ -48,7 +48,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-021 | Autenticação OpenCode | Basic Auth confirmada na source v1.18.7 | Slice 1.1.3 | P0 | Segurança | Validação no container | Decisão registrada | In progress | — |
 | OQ-022 | Autenticação Codex | A confirmar pós-MVP | Epic 4 | P1 | Plataforma | Discovery futuro | Estratégia definida | Open | — |
 | OQ-023 | Interface Antigravity | Em discovery | Epic 5 | P0 | Plataforma | Discovery externo | Discovery report | Open | 0011 |
-| OQ-024 | Retries | Política de retries em falhas transitórias | Epic 2 | P1 | Plataforma | Análise | Estratégia documentada | Open | — |
+| OQ-024 | Retries | Política de retries em falhas transitórias | Epic 2 | P1 | Plataforma | Análise | Estratégia documentada | Open (escopo da SLICE-WORKSPACE-001: retries apenas em setup/cleanup idempotentes do workspace (`git worktree add` / `git worktree remove` / limpeza de `runs/<runId>/workspace`); retry do agente `IRunnerAdapter.*` permanece fora do escopo da slice 2.1.1; ver [Discovery 016 § 4.5](discovery/016-workspace-manager-scope.md#45-escopo-de-retries-oq-024) e [SLICE-WORKSPACE-001 § 4.6](planning/slices/SLICE-WORKSPACE-001.md#46-retries-oq-024)) | — |
 
 ## Segurança
 
@@ -144,7 +144,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-011 | Resolved |
 | OQ-012 | Open |
 | OQ-013 | Open |
-| OQ-014 | Open |
+| OQ-014 | Open (estratégia registrada em Discovery 016 — workspace rejeitado se origem suja) |
 | OQ-015 | Open |
 | OQ-020 | Resolved |
 | OQ-021 | In progress (validar em slice 1.1.3) |

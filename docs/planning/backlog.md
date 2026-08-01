@@ -494,6 +494,9 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 **Dependências:** Slice 1.1.3.
 
+**Documento de escopo:** [`../docs/discovery/016-workspace-manager-scope.md`](../docs/discovery/016-workspace-manager-scope.md).
+**Documento operacional da slice:** [`../docs/planning/slices/SLICE-WORKSPACE-001.md`](../docs/planning/slices/SLICE-WORKSPACE-001.md).
+
 **Escopo:**
 
 * Criação de volume.
@@ -867,6 +870,6 @@ Backlog hierárquico priorizado em formato Epic → Capability → Slice → Tas
 
 A PR #3 (`STAB-005A.3: Complete OpenCode bridge run via session messages`) foi mergeada em `phase-1-mvp` no commit `6e21573f` (head do `stab-005a` em `d1001d3`). Completion real provado via `GET /session/{id}/message`; `GET /event` é pump SSE auxiliar. Cenários `RealOpenCodePoc` `cancel`/`timeout`/`provider-error` permanecem como follow-up fora da STAB-005A.3.
 
-O próximo slice de implementação é o **SLICE-WORKSPACE-001 (Slice 2.1.1 — Workspace Manager)**, definido neste backlog sob `Epic 2 / Capability 2.1 — Workspace isolado`. A OQ-200 está `Resolved` e a transição do Epic 1 para o Epic 2 está liberada.
+O próximo slice de implementação é o **SLICE-WORKSPACE-001 (Slice 2.1.1 — Workspace Manager)**, definido neste backlog sob `Epic 2 / Capability 2.1 — Workspace isolado`. A OQ-200 está `Resolved` e a transição do Epic 1 para o Epic 2 está liberada. O escopo e a estratégia da slice estão versionados em [`../docs/discovery/016-workspace-manager-scope.md`](../docs/discovery/016-workspace-manager-scope.md) e em [`../docs/planning/slices/SLICE-WORKSPACE-001.md`](../docs/planning/slices/SLICE-WORKSPACE-001.md) (fase de planejamento — implementação não iniciada).
 
 O Milestone 0 (Discovery) já está fechado conforme [`../docs/discovery/phase-0-report.md`](../docs/discovery/phase-0-report.md); o gate para iniciar o Epic 1 também já foi superado (slices 1.1.1 a 1.1.4 entregues). O gate de estabilização foi superado pelo merge da PR #3; Epic 2 / SLICE-WORKSPACE-001 está liberado para início.

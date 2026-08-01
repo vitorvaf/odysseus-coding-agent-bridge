@@ -108,6 +108,11 @@ Roadmap incremental do OCAB organizado em **Milestones** e **Epics**, com **Slic
 
 **Critério de saída:** execução workspace-write cria workspace isolado, mantém repositório original intocado e executa cleanup após retenção.
 
+**Documentação:**
+
+* Escopo autoritativo: [`../discovery/016-workspace-manager-scope.md`](../discovery/016-workspace-manager-scope.md).
+* Documento operacional: [`../planning/slices/SLICE-WORKSPACE-001.md`](../planning/slices/SLICE-WORKSPACE-001.md) (fase de planejamento — implementação não iniciada).
+
 #### Slice 2.1.2 — Git diff e status
 
 **Objetivo:** fornecer diff ao relatório.
