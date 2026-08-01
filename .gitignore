@@ -24,3 +24,6 @@ secrets/*.pem
 .publish/
 out/
 artifacts/
+
+# POC fixtures and standalone POCs (not part of the main codebase)
+poc/fixtures/
