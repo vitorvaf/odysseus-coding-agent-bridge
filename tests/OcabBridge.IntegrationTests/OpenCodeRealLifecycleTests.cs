@@ -35,6 +35,18 @@ public sealed class OpenCodeRealFixture : IAsyncLifetime
     private const string OpenCodeBinaryDefault = "/tmp/opencode-v1.18.8/opencode";
     private const string OpenCodePassword = "test123_reallifecycle";
 
+    // Binary download support mirrors OpenCodeTestServer. When the
+    // OpenCode v1.18.8 binary is not present at the default path (e.g.
+    // in a fresh CI runner), the fixture downloads it from the official
+    // GitHub release tarball before starting the runner. The
+    // process-wide lock serialises concurrent fixture initialisations.
+    private static readonly SemaphoreSlim _downloadLock = new(1, 1);
+    private const string DefaultInstallRoot = "/tmp/opencode-v1.18.8";
+    private const string DefaultVersionTag = "v1.18.8";
+    private const string ExpectedVersionLiteral = "1.18.8";
+    private const string DownloadUrl =
+        $"https://github.com/anomalyco/opencode/releases/download/{DefaultVersionTag}/opencode-linux-x64.tar.gz";
+
     public int Port { get; private set; }
     public string BaseUrl => $"http://127.0.0.1:{Port}";
     public string ConfigRoot { get; private set; } = "";
@@ -52,8 +64,14 @@ public sealed class OpenCodeRealFixture : IAsyncLifetime
         var binary = Environment.GetEnvironmentVariable(OpenCodeBinaryEnv) ?? OpenCodeBinaryDefault;
         if (!File.Exists(binary))
         {
+            await EnsureBinaryDownloadedAsync(binary).ConfigureAwait(false);
+        }
+        if (!File.Exists(binary))
+        {
             throw new FileNotFoundException(
-                $"OpenCode binary not found at {binary}. Set OCAB_TEST_OPENCODE_BIN.");
+                $"OpenCode binary still missing at {binary} after download attempt. " +
+                "Set OCAB_TEST_OPENCODE_BIN or fix the network access to " +
+                "github.com/anomalyco/opencode releases.");
         }
 
         // Per-test exclusive XDG_CONFIG_HOME so OpenCode cannot
@@ -188,6 +206,115 @@ public sealed class OpenCodeRealFixture : IAsyncLifetime
         // Best-effort cleanup; do not fail the fixture if the directory
         // is still held by lingering handles.
         try { Directory.Delete(ConfigRoot, recursive: true); } catch { }
+    }
+
+    // Downloads the OpenCode v1.18.8 binary from the official release
+    // tarball when it is not present at the expected path. Mirrors the
+    // download logic in OpenCodeTestServer. Serialised by a process-wide
+    // lock so multiple fixtures initialising concurrently do not race.
+    // Throws on non-Unix platforms (matches OpenCodeTestServer).
+    private static async Task EnsureBinaryDownloadedAsync(string targetPath)
+    {
+        if (File.Exists(targetPath)) return;
+
+        await _downloadLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (File.Exists(targetPath)) return;
+
+            if (Environment.OSVersion.Platform != PlatformID.Unix)
+            {
+                throw new PlatformNotSupportedException(
+                    $"OpenCode binary auto-download is only supported on Unix. " +
+                    $"On this platform ({Environment.OSVersion.Platform}), set OCAB_TEST_OPENCODE_BIN manually.");
+            }
+
+            var installRoot = Environment.GetEnvironmentVariable("OCAB_TEST_OPENCODE_DIR")
+                ?? DefaultInstallRoot;
+            Directory.CreateDirectory(installRoot);
+
+            var tarballPath = Path.Combine(installRoot, "opencode-linux-x64.tar.gz");
+
+            Console.Error.WriteLine($"[opencode-real-fixture] downloading {DownloadUrl} → {tarballPath}");
+            var curlPsi = new ProcessStartInfo
+            {
+                FileName = "curl",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            curlPsi.ArgumentList.Add("--fail");
+            curlPsi.ArgumentList.Add("--silent");
+            curlPsi.ArgumentList.Add("--show-error");
+            curlPsi.ArgumentList.Add("--location");
+            curlPsi.ArgumentList.Add("--max-time");
+            curlPsi.ArgumentList.Add("120");
+            curlPsi.ArgumentList.Add("--output");
+            curlPsi.ArgumentList.Add(tarballPath);
+            curlPsi.ArgumentList.Add(DownloadUrl);
+            using (var curl = Process.Start(curlPsi)
+                ?? throw new InvalidOperationException("Failed to start curl"))
+            {
+                await curl.WaitForExitAsync().ConfigureAwait(false);
+                if (curl.ExitCode != 0)
+                {
+                    var stderr = await curl.StandardError.ReadToEndAsync().ConfigureAwait(false);
+                    throw new InvalidOperationException(
+                        $"curl failed with exit {curl.ExitCode} downloading {DownloadUrl}: {stderr}");
+                }
+            }
+
+            Console.Error.WriteLine($"[opencode-real-fixture] extracting {tarballPath} → {installRoot}");
+            var tarPsi = new ProcessStartInfo
+            {
+                FileName = "tar",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WorkingDirectory = installRoot,
+            };
+            tarPsi.ArgumentList.Add("--extract");
+            tarPsi.ArgumentList.Add("--file");
+            tarPsi.ArgumentList.Add(tarballPath);
+            tarPsi.ArgumentList.Add("--no-same-owner");
+            using (var tar = Process.Start(tarPsi)
+                ?? throw new InvalidOperationException("Failed to start tar"))
+            {
+                await tar.WaitForExitAsync().ConfigureAwait(false);
+                if (tar.ExitCode != 0)
+                {
+                    var stderr = await tar.StandardError.ReadToEndAsync().ConfigureAwait(false);
+                    throw new InvalidOperationException(
+                        $"tar failed with exit {tar.ExitCode} extracting {tarballPath}: {stderr}");
+                }
+            }
+
+            // Verify the binary reports the expected version before
+            // allowing the fixture to proceed.
+            var versionPsi = new ProcessStartInfo
+            {
+                FileName = targetPath,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                ArgumentList = { "--version" },
+            };
+            using var versionProc = Process.Start(versionPsi)
+                ?? throw new InvalidOperationException("Failed to start OpenCode for version check");
+            await versionProc.WaitForExitAsync().ConfigureAwait(false);
+            var versionOut = (await versionProc.StandardOutput.ReadToEndAsync().ConfigureAwait(false)).Trim();
+            if (versionProc.ExitCode != 0 || !versionOut.Contains(ExpectedVersionLiteral))
+            {
+                var stderr = await versionProc.StandardError.ReadToEndAsync().ConfigureAwait(false);
+                throw new InvalidOperationException(
+                    $"OpenCode binary at {targetPath} reports unexpected version. " +
+                    $"stdout='{versionOut}' stderr='{stderr}' expected='{ExpectedVersionLiteral}'");
+            }
+        }
+        finally
+        {
+            _downloadLock.Release();
+        }
     }
 
     private static int GetFreePort()
