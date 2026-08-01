@@ -136,6 +136,15 @@ public sealed class OpenCodeRealFixture : IAsyncLifetime
         psi.ArgumentList.Add("--print-logs");
         psi.EnvironmentVariables["XDG_CONFIG_HOME"] = ConfigRoot;
         psi.EnvironmentVariables["OPENCODE_SERVER_PASSWORD"] = OpenCodePassword;
+
+        // Materialise the pilot-repo when absent (e.g. in CI checkouts
+        // where poc/fixtures/ is gitignored). OpenCode requires its
+        // working directory to exist before Process.Start succeeds;
+        // creating a minimal git-backed directory here avoids a
+        // Win32Exception at startup without depending on the fixture
+        // being versioned.
+        EnsurePilotRepoExists();
+
         psi.WorkingDirectory = PilotRepoPath;
 
         try
@@ -206,6 +215,59 @@ public sealed class OpenCodeRealFixture : IAsyncLifetime
         // Best-effort cleanup; do not fail the fixture if the directory
         // is still held by lingering handles.
         try { Directory.Delete(ConfigRoot, recursive: true); } catch { }
+    }
+
+    // Materialises a minimal git-backed pilot repository at PilotRepoPath
+    // when it is missing from the checkout (e.g. CI runners where
+    // poc/fixtures/ is gitignored). OpenCode requires its working
+    // directory to exist before Process.Start succeeds; creating the
+    // directory here avoids a Win32Exception at startup without
+    // depending on the fixture being versioned. If the path already
+    // exists and contains a .git directory, it is left untouched so
+    // local development with a real fixture is not disturbed.
+    private void EnsurePilotRepoExists()
+    {
+        if (Directory.Exists(PilotRepoPath)
+            && Directory.Exists(Path.Combine(PilotRepoPath, ".git")))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(PilotRepoPath);
+        File.WriteAllText(
+            Path.Combine(PilotRepoPath, "README.md"),
+            "# OCAB Pilot\n\nFixture materialised by OpenCodeRealFixture for CI.\n");
+
+        void RunGit(params string[] args)
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "git",
+                WorkingDirectory = PilotRepoPath,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            foreach (var arg in args) psi.ArgumentList.Add(arg);
+            using var proc = Process.Start(psi)
+                ?? throw new InvalidOperationException(
+                    $"git failed to start: {string.Join(' ', args)}");
+            string stdout = proc.StandardOutput.ReadToEnd();
+            string stderr = proc.StandardError.ReadToEnd();
+            proc.WaitForExit();
+            if (proc.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"git {string.Join(' ', args)} failed (exit={proc.ExitCode}). " +
+                    $"stdout={stdout} stderr={stderr}");
+            }
+        }
+
+        RunGit("init", "--initial-branch=main");
+        RunGit("config", "user.name", "OCAB Tests");
+        RunGit("config", "user.email", "ocab-tests@example.invalid");
+        RunGit("add", "README.md");
+        RunGit("commit", "-m", "init pilot repo");
     }
 
     // Downloads the OpenCode v1.18.8 binary from the official release
