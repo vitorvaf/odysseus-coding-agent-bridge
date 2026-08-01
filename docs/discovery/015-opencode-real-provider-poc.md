@@ -251,13 +251,13 @@ dotnet test tests/OcabBridge.IntegrationTests/OcabBridge.IntegrationTests.csproj
   --filter "FullyQualifiedName~RealOpenCode_completion_returns_known_response"
 ```
 
-## OQ-200: In progress
+## OQ-200: Resolved (PR #3 `6e21573f`)
 
-A OQ-200 permanece aberta. O Run foi finalizado como `Completed` em todos os testes, e o provider recebeu 1 request com resposta `OCAB_PROVIDER_OK`. No entanto, `runs.result` ficou vazio porque o `ReadSseEventsAsync` não capturou o terminal event via `/event`. A causa é documentada em § Limitações restantes.
+A OQ-200 foi fechada pela PR #3 (`STAB-005A.3: Complete OpenCode bridge run via session messages`) mergeada em `phase-1-mvp`. O `Run` é finalizado como `Completed` com `runs.result == "OCAB_PROVIDER_OK"`. A autoridade terminal passou de `GET /event` (chunked stream incompleto em v1.18.8) para `GET /session/{id}/message` (polling 100-250ms, terminal = última mensagem assistant com `info.finish: "stop"` e `info.error` ausente), enquanto `GET /event` permanece como pump SSE auxiliar para `RunEvent`. Cenários `RealOpenCodePoc` `cancel`/`timeout`/`provider-error` permanecem como follow-up fora da STAB-005A.3 e o gate `Accepted` da Spec 005 ainda depende dos quatro cenários `RealOpenCodePoc` verdes.
 
-## Spec 005: Proposed
+## Spec 005: Proposed (parcialmente comprovada pela PR #3)
 
-A Spec 005 permanece `Proposed`. O critério `OCR-AC-012` (provider customizado determinístico) continua não comprovado porque o `runs.result` ficou vazio. A evidência do STAB-005A.1 (driver) comprova a conectividade, mas a persistência do `result` precisa da correção do `ReadSseEventsAsync` para consultar `/session/{id}/message` como fallback.
+A Spec 005 permanece `Proposed`. O critério `OCR-AC-012` (provider customizado determinístico) passou para `Partially Implemented` pela PR #3 (`6e21573f`): completion real é provado pelo teste `RealOpenCode_completion_returns_known_response` com `runs.result == "OCAB_PROVIDER_OK"`, e a autoridade terminal é `GET /session/{id}/message` (não mais `GET /event`, que serve apenas como pump SSE auxiliar de `RunEvent`). Os cenários `RealOpenCodePoc` `cancel`/`timeout`/`provider-error` permanecem como follow-up e o gate `Accepted` da Spec 005 continua dependente dos quatro cenários `RealOpenCodePoc` verdes.
 
 ## Referências
 
