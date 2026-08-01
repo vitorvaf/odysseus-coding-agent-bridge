@@ -1,10 +1,10 @@
 # Odysseus Coding Agent Bridge (OCAB)
 
-> **Status:** Specification
-> **Implementation:** Not started
-> **MVP:** Planned
+> **Status:** Phase 1 — Completed with follow-ups
+> **Implementation:** Slices 1.1.1 → 1.1.4 implemented; stabilization gate in progress
+> **MVP:** Planned (workspace-write pending after stabilization gate)
 >
-> Documentação em construção. Este repositório ainda **não contém código de produção**. Toda a informação aqui descreve o sistema proposto, decisões de arquitetura e planos de entrega. Componentes referenciados não estão implementados até que a fase correspondente do roadmap seja concluída.
+> Repositório contém código de produção dos slices 1.1.1 a 1.1.4 do Epic 1 (MVP Read-Only). O stabilization gate desta entrega está em curso — ver [`docs/planning/roadmap.md`](docs/planning/roadmap.md) e o PR `chore(stabilization): close Phase 1 runtime and quality gates`.
 
 ## Problema
 
@@ -146,12 +146,13 @@ sequenceDiagram
 | Item | Estado |
 | --- | --- |
 | Especificação | Em construção |
-| Decisões arquiteturais | 14 ADRs aceitos |
-| Discovery técnico | Planejado (Fase 0) |
-| MVP vertical read-only | Planejado (Fase 3) |
-| Execução de escrita | Planejado (Fase 5) |
-| Codex Runner | Pós-MVP (Fase 8) |
-| Antigravity Runner | Pós-MVP (Fase 9) |
+| Decisões arquiteturais | 16 ADRs aceitos (0001–0016) |
+| Discovery técnico | Concluído (Milestone 0) |
+| MVP Read-Only vertical | Concluído com follow-ups (Epic 1, Slices 1.1.1–1.1.4) |
+| Estabilização do Epic 1 | Em curso (PR atual) |
+| Workspace-write | Planejado (Epic 2) — bloqueia no stabilization gate |
+| Codex Runner | Pós-MVP (Epic 4) |
+| Antigravity Runner | Pós-MVP (Epic 5) |
 
 ## Onde encontrar informação
 

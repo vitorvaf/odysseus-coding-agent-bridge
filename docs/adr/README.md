@@ -55,6 +55,9 @@ Accepted
 | [0013](0013-private-docker-network.md) | Rede Docker privada | Accepted |
 | [0014](0014-repository-slug-registry.md) | Repositórios identificados por slug | Accepted |
 | [0015](0015-runtime-version.md) | .NET 8 LTS como runtime alvo | Accepted |
+| [0016](0016-apache-2.0-license.md) | Licença Apache-2.0 do repositório | Accepted |
+| [0017](0017-pin-opencode-version.md) | Pin OpenCode Version and Generated HTTP Contract | Accepted |
+| [0018](0018-persistent-run-queue.md) | Persistent Run Queue with Awaitable Execution Coordination | Proposed |
 
 ## Como propor nova ADR
 

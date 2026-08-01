@@ -32,6 +32,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:9010
       OCAB_MCP_TOKEN: ${OCAB_MCP_TOKEN:-__SET_ME__}
+      # SLICE-STAB-002 / ADR-0017: shared Basic Auth password with the
+      # OpenCode runner (OPENCODE_SERVER_PASSWORD). The bridge sends
+      # `Authorization: Basic opencode:<value>` on every request.
+      OCAB__OpenCodePassword: ${OCAB_OPENCODE_SERVER_PASSWORD:-__SET_ME__}
       ConnectionStrings__OcabPg: "Host=ocab-postgres;Port=5432;Username=ocab;Password=${OCAB_PG_PASSWORD:-__SET_ME__};Database=ocab"
     depends_on:
       ocab-postgres:
@@ -103,6 +107,10 @@ services:
     environment:
       OPENCODE_HOST: "0.0.0.0"
       OPENCODE_PORT: "4096"
+      # Basic Auth enabled by OPENCODE_SERVER_PASSWORD per SLICE-STAB-002
+      # / ADR-0017. Without it the server is unsecured. The bridge
+      # sends `Authorization: Basic opencode:<value>` on every request.
+      OPENCODE_SERVER_PASSWORD: ${OCAB_OPENCODE_SERVER_PASSWORD:-__SET_ME__}
     deploy:
       resources:
         limits:
@@ -110,7 +118,7 @@ services:
           memory: 4G
           pids: 512
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:4096/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:4096/global/health"]
       interval: 15s
       timeout: 5s
       retries: 3

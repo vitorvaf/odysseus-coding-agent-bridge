@@ -1,0 +1,145 @@
+name: ci
+
+on:
+  push:
+    branches: [main, phase-1-mvp]
+  pull_request:
+    branches: [main, phase-1-mvp]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: setup-dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: cache NuGet
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: restore
+        run: dotnet restore OcabBridge.slnx
+
+      - name: build
+        run: dotnet build OcabBridge.slnx -c Release --no-restore
+
+      - name: unit tests
+        id: unit-tests
+        continue-on-error: true
+        run: >-
+          dotnet test tests/OcabBridge.UnitTests/OcabBridge.UnitTests.csproj
+          -c Release --no-build
+          --logger trx --logger "console;verbosity=normal"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./artifacts/unit
+
+      - name: verify unit test results
+        if: always()
+        run: |
+          mkdir -p ./artifacts/unit
+          python3 .github/workflows/verify/verify_trx.py \
+            "$(find ./artifacts/unit -name '*.trx' | head -n 1)"
+
+      - name: contract tests
+        id: contract-tests
+        continue-on-error: true
+        run: >-
+          dotnet test tests/OcabBridge.ContractTests/OcabBridge.ContractTests.csproj
+          -c Release --no-build
+          --logger trx --logger "console;verbosity=normal"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./artifacts/contract
+
+      - name: verify contract test results
+        if: always()
+        run: |
+          mkdir -p ./artifacts/contract
+          python3 .github/workflows/verify/verify_trx.py \
+            "$(find ./artifacts/contract -name '*.trx' | head -n 1)"
+
+      - name: integration tests
+        id: integration-tests
+        continue-on-error: true
+        run: >-
+          dotnet test tests/OcabBridge.IntegrationTests/OcabBridge.IntegrationTests.csproj
+          -c Release --no-build
+          --logger trx --logger "console;verbosity=normal"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./artifacts/integration
+
+      - name: verify integration test results
+        if: always()
+        run: |
+          mkdir -p ./artifacts/integration
+          python3 .github/workflows/verify/verify_trx.py \
+            "$(find ./artifacts/integration -name '*.trx' | head -n 1)"
+
+      - name: security tests
+        id: security-tests
+        continue-on-error: true
+        run: >-
+          dotnet test tests/OcabBridge.SecurityTests/OcabBridge.SecurityTests.csproj
+          -c Release --no-build
+          --logger trx --logger "console;verbosity=normal"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./artifacts/security
+
+      - name: verify security test results
+        if: always()
+        run: |
+          mkdir -p ./artifacts/security
+          python3 .github/workflows/verify/verify_trx.py \
+            "$(find ./artifacts/security -name '*.trx' | head -n 1)"
+
+      - name: docker compose config
+        run: docker compose -f compose.yaml config --quiet
+
+      - name: docker build (bridge)
+        run: docker build -t ocab-bridge:ci -f Dockerfile .
+
+      - name: secret scan (gitleaks)
+        # Run the Gitleaks CLI directly with a pinned version instead of
+        # using gitleaks/gitleaks-action@v2, which reports
+        # "Unexpected input(s) 'args', valid inputs are ['']" on this
+        # runner (the action's input schema is empty by default). The
+        # CLI invocation matches the same detection coverage as the
+        # previous v2 step.
+        run: |
+          GITLEAKS_VERSION=8.18.4
+          curl -fsSL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          /tmp/gitleaks detect --no-banner --redact --source .
+
+      - name: upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 7

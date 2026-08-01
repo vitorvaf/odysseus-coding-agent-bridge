@@ -35,7 +35,9 @@ public sealed record StartSessionRequest(
 
 public sealed record RunnerSession(
     string SessionId,
-    string Status);
+    string Status,
+    string? UpstreamVersion = null,
+    string? ContractChecksum = null);
 
 public sealed record RunnerEvent(
     string Type,

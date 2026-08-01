@@ -1,10 +1,10 @@
-# Discovery — Fase 0
+# Discovery — Milestone 0
 
 > **Status:** Planned
 > **Escopo:** exclusivamente documental e de prova técnica em ambiente descartável.
 > **Não inclui:** código de produção, migrations, runner definitivo, deploy.
 
-A Fase 0 do roadmap é composta por **discovery técnico** que antecede qualquer implementação. Seu objetivo é produzir **evidências** que sustentem as decisões bloqueantes listadas em [`../open-questions.md`](../open-questions.md) e em [`../planning/roadmap.md`](../planning/roadmap.md).
+O Milestone 0 (Discovery) do roadmap é composto por **discovery técnico** que antecede qualquer implementação. Seu objetivo é produzir **evidências** que sustentem as decisões bloqueantes listadas em [`../open-questions.md`](../open-questions.md) e em [`../planning/roadmap.md`](../planning/roadmap.md).
 
 ## Princípios
 
@@ -36,19 +36,19 @@ docs/discovery/
 | ID | Título | Bloqueia | Prioridade |
 | --- | --- | --- | --- |
 | 001 | Environment baseline | Todas as fases | P0 |
-| 002 | MCP SDK evaluation | Fase 1 | P0 |
-| 003 | OpenCode container PoC | Fase 3 | P0 |
-| 004 | Repository pilot selection | Fase 3 | P0 |
-| 005 | Workspace strategy evaluation | Fase 5 | P0 |
-| 006 | Authentication and networking | Fase 1 | P0 |
-| 007 | Process execution evaluation | Fase 1 | P0 |
-| 008 | Resource limits baseline | Fase 1 | P0 |
-| 009 | Security discovery | Fase 1 / 7 | P0 |
+| 002 | MCP SDK evaluation | Epic 1 | P0 |
+| 003 | OpenCode container PoC | Slice 1.1.3 | P0 |
+| 004 | Repository pilot selection | Slice 1.1.3 | P0 |
+| 005 | Workspace strategy evaluation | Epic 2 | P0 |
+| 006 | Authentication and networking | Epic 1 | P0 |
+| 007 | Process execution evaluation | Epic 1 | P0 |
+| 008 | Resource limits baseline | Epic 1 | P0 |
+| 009 | Security discovery | Epic 1 / Epic 2 | P0 |
 | 010 | Discovery decisions consolidation | — | — |
 
-## Gate para iniciar a Fase 1
+## Gate para iniciar o Epic 1
 
-A Fase 1 (Foundation) só começa quando os itens abaixo estiverem **fechados** com evidência documentada:
+O Epic 1 (Foundation + Repository Registry + OpenCode Read-Only VS + MCP Contract Completion) só começa quando os itens abaixo estiverem **fechados** com evidência documentada:
 
 * [ ] Nome do projeto confirmado.
 * [ ] .NET 8 confirmado (ou versão posterior justificada).

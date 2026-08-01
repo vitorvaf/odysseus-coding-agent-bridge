@@ -64,9 +64,9 @@ Formalizar a autorização, o mandato e a governança do projeto OCAB durante a 
 | M1 | Foundation da plataforma implementada (Fases 0 e 1 do roadmap). |
 | M2 | Vertical slice read-only com OpenCode (Fases 2 a 4). |
 | M3 | Execução workspace-write com validação (Fases 5 a 7). |
-| M4 | Operação assistida (Fase 10). |
-| M5 | Codex Runner (Fase 8). |
-| M6 | Antigravity Runner (Fase 9). |
+| M4 | Operação assistida (Epic 3). |
+| M5 | Codex Runner (Epic 4). |
+| M6 | Antigravity Runner (Epic 5). |
 
 ## Governança documental
 

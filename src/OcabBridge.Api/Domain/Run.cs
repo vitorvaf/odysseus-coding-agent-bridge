@@ -15,8 +15,12 @@ public sealed class Run
 {
     public Guid RunId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? StartedAt { get; set; }
+    public DateTimeOffset? FinishedAt { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? RepositorySlug { get; set; }
     public string? Prompt { get; set; }
     public string? ResultJson { get; set; }
+    public int TimeoutSeconds { get; set; } = 300;
+    public string? IdempotencyKey { get; set; }
 }

@@ -2,9 +2,9 @@
 
 > **Status:** Proposed
 
-Roadmap incremental do OCAB dividido em fases.
+Roadmap incremental do OCAB organizado em **Milestones** e **Epics**, com **Slices** enumerados (ex.: Slice 1.1.3). A hierarquia substitui a nomenclatura anterior de "Fases" registrada em versões anteriores deste documento.
 
-## Fase 0 — Discovery
+## Milestone 0 — Discovery
 
 **Objetivo:** validar premissas antes de iniciar implementação.
 
@@ -18,9 +18,11 @@ Roadmap incremental do OCAB dividido em fases.
 * Riscos confirmados.
 * Decisões abertas reduzidas.
 
-**Critério de saída:** decisão informada sobre seguir para Fase 1.
+**Critério de saída:** decisão informada sobre seguir para o Epic 1.
 
-## Fase 1 — Foundation
+## Epic 1 — MVP Read-Only
+
+### Slice 1.1.1 — Foundation
 
 **Objetivo:** estabelecer a base técnica do OCAB.
 
@@ -35,7 +37,7 @@ Roadmap incremental do OCAB dividido em fases.
 
 **Critério de saída:** `/health`, `/ready`, `/metrics` respondem; `Run` pode ser criado e consultado.
 
-## Fase 2 — Repository Registry
+### Slice 1.1.2 — Repository Registry
 
 **Objetivo:** permitir cadastro e uso de repositórios por slug.
 
@@ -48,7 +50,7 @@ Roadmap incremental do OCAB dividido em fases.
 
 **Critério de saída:** repositórios cadastrados podem ser listados e usados.
 
-## Fase 3 — OpenCode Read-Only Vertical Slice
+### Slice 1.1.3 — OpenCode Read-Only Vertical Slice
 
 **Objetivo:** primeira fatia vertical realmente utilizável — execução read-only ponta a ponta via MCP.
 
@@ -68,9 +70,9 @@ Roadmap incremental do OCAB dividido em fases.
 
 **Critério de saída:** um cliente MCP (ou o Odysseus) consegue criar uma execução read-only, acompanhar o estado, cancelar e obter um relatório, com o repositório original intocado.
 
-**Nota:** esta fase entrega o **primeiro produto observável** do OCAB.
+**Nota:** este slice entrega o **primeiro produto observável** do OCAB.
 
-## Fase 4 — MCP Contract Completion
+### Slice 1.1.4 — MCP Contract Completion
 
 **Objetivo:** completar o contrato MCP e endurecer os aspectos transversais.
 
@@ -89,99 +91,157 @@ Roadmap incremental do OCAB dividido em fases.
 
 **Critério de saída:** todas as ferramentas MCP estão expostas com autenticação, paginação, idempotência, versionamento e limites validados.
 
-## Fase 5 — Workspace Write
+## Epic 2 — MVP Workspace-Write
 
-**Objetivo:** permitir alterações controladas em workspace isolado.
+### Capability 2.1 — Workspace isolado
 
-**Entregáveis:**
+#### Slice 2.1.1 — Workspace Manager
 
-* Workspace Manager.
-* Branch de execução.
-* Git status e diff.
-* Cleanup.
-
-**Critério de saída:** execução workspace-write produz diff.
-
-## Fase 6 — Validation Pipeline
-
-**Objetivo:** executar validações declarativas.
+**Objetivo:** permitir alterações em workspace dedicado.
 
 **Entregáveis:**
 
-* Comandos por repositório.
-* Execução sequencial.
-* Timeout.
-* Artefatos de validação.
+* Workspace Manager (criação e cleanup de worktrees isolados).
+* Branch de execução `agent/<repository>/<run-id>`.
+* Estados adicionais: `PreparingWorkspace`, `ValidatingRequest`, `Rejected`.
+* Cleanup idempotente com lock por runId.
 
-**Critério de saída:** validações executadas e resultados persistidos.
+**Critério de saída:** execução workspace-write cria workspace isolado, mantém repositório original intocado e executa cleanup após retenção.
 
-## Fase 7 — Policy Hardening
+#### Slice 2.1.2 — Git diff e status
 
-**Objetivo:** endurecer segurança.
+**Objetivo:** fornecer diff ao relatório.
 
 **Entregáveis:**
 
-* Policy engine determinístico.
-* Allowlist e blocklist.
-* Limites de recursos.
-* Auditoria.
-* Testes de segurança ampliados.
+* `git status` e `git diff` no workspace.
+* Persistência como artefato (`git-status.txt`, `diff-stat.txt`, `diff.patch`, `changed-files.json`).
+* `run_diff` MCP com modos `summary`, `stat` e `patch`.
+* Patch > 1 MB vira referência a artefato.
+
+**Critério de saída:** `run_diff` retorna `summary`, `stat`, `patch`.
+
+#### Slice 2.1.3 — Validation Pipeline
+
+**Objetivo:** executar validações declarativas por repositório.
+
+**Entregáveis:**
+
+* Comandos por repositório (declarativos).
+* Execução sequencial com timeout por comando.
+* Captura de stdout/stderr.
+* Status agregado distinguindo falha de validação de falha de infraestrutura.
+* Estado `CompletedWithValidationErrors` quando o agente conclui mas validações falham.
+
+**Critério de saída:** validações executadas em sequência, resultados persistidos, status final reflete validação.
+
+### Capability 2.2 — Hardening de segurança
+
+#### Slice 2.2.1 — Policy Engine
+
+**Objetivo:** aplicar política determinística em todas as fases.
+
+**Entregáveis:**
+
+* Avaliação pré-execução.
+* Avaliação por comando.
+* Decisões em `policy_decisions`.
+* Bloqueios: `git push`, path traversal, symlink escape, comandos fora da allowlist.
 
 **Critério de saída:** tentativas adversariais bloqueadas e registradas.
 
-## Fase 8 — Codex Runner
+#### Slice 2.2.2 — Limites de recursos e auditoria
 
-**Objetivo:** integrar Codex.
+**Objetivo:** prevenir abuso via limites e auditoria.
 
 **Entregáveis:**
 
-* Adapter Codex.
+* Compose com `cpus`, `memory`, `pids_limit`, `read_only`, `cap_drop: ALL`, `no-new-privileges`, `user` não root.
+* Métricas expostas.
+* Auditoria completa.
+
+**Critério de saída:** runner não executa como root, limites aplicados, métricas expostas.
+
+## Epic 3 — Operations
+
+### Slice 3.1.1 — Backup e restore
+
+**Objetivo:** garantir recuperação.
+
+**Entregáveis:**
+
+* Backup diário automatizado.
+* Restore testado em staging.
+
+**Critério de saída:** backup executado e validado; restore recupera estado.
+
+### Slice 3.1.2 — Retenção e limpeza
+
+**Objetivo:** controlar uso de disco.
+
+**Entregáveis:**
+
+* Cron interna.
+* Lock por `runId`.
+
+**Critério de saída:** execuções expiradas removidas; logs de limpeza.
+
+## Epic 4 — Codex Runner
+
+### Slice 4.1.1 — Discovery e adapter Codex
+
+**Objetivo:** adicionar Codex como executor/revisor.
+
+**Entregáveis:**
+
+* Discovery Codex CLI.
+* Adapter `IRunnerAdapter` para Codex.
 * Execução read-only e workspace-write.
-* Revisão independente.
 
 **Critério de saída:** Codex executa via MCP.
 
-## Fase 9 — Antigravity Discovery e Runner
+## Epic 5 — Antigravity
 
-**Objetivo:** validar e integrar Antigravity.
+### Slice 5.1.1 — Discovery da interface
 
-**Entregáveis:**
-
-* Discovery documentado.
-* Adapter inicial read-only.
-* Validação em projeto piloto.
-
-**Critério de saída:** Antigravity executa read-only.
-
-## Fase 10 — Operação
-
-**Objetivo:** operação confiável.
+**Objetivo:** validar interface disponível do Antigravity.
 
 **Entregáveis:**
 
-* Backup automatizado.
-* Restore testado.
-* Retenção e limpeza.
-* Troubleshooting documentado.
-* Atualização simplificada.
-* Hardening final.
+* Documentação de descoberta.
+* ADR substituta ou revisão da ADR-0011.
 
-**Critério de saída:** operação de longo prazo viável.
+**Critério de saída:** decisões registradas em ADR.
 
-## Diagrama de fases
+### Slice 5.1.2 — Adapter Antigravity read-only
+
+**Objetivo:** integrar Antigravity em modo read-only.
+
+**Entregáveis:**
+
+* Adapter.
+* Execução read-only.
+
+**Critério de saída:** execução read-only funciona.
+
+## Diagrama de roadmap
 
 ```mermaid
 flowchart LR
-    P0[Fase 0 - Discovery] --> P1[Fase 1 - Foundation]
-    P1 --> P2[Fase 2 - Repository Registry]
-    P2 --> P3[Fase 3 - OpenCode Read-Only]
-    P3 --> P4[Fase 4 - MCP Vertical Slice]
-    P4 --> P5[Fase 5 - Workspace Write]
-    P5 --> P6[Fase 6 - Validation Pipeline]
-    P6 --> P7[Fase 7 - Policy Hardening]
-    P7 --> P8[Fase 8 - Codex Runner]
-    P8 --> P9[Fase 9 - Antigravity]
-    P9 --> P10[Fase 10 - Operação]
+    M0[Milestone 0 - Discovery] --> E1[Epic 1 - MVP Read-Only]
+    E1 --> E1S113[Slice 1.1.3 - OpenCode Read-Only VS]
+    E1 --> E1S114[Slice 1.1.4 - MCP Contract Completion]
+    E1 --> E2[Epic 2 - MVP Workspace-Write]
+    E2 --> E2S211[Slice 2.1.1 - Workspace Manager]
+    E2 --> E2S212[Slice 2.1.2 - Git diff]
+    E2 --> E2S213[Slice 2.1.3 - Validation Pipeline]
+    E2 --> E2S221[Slice 2.2.1 - Policy Engine]
+    E2 --> E2S222[Slice 2.2.2 - Limites e auditoria]
+    E2 --> E3[Epic 3 - Operations]
+    E3 --> E3S311[Slice 3.1.1 - Backup/Restore]
+    E3 --> E3S312[Slice 3.1.2 - Retenção/Limpeza]
+    E2 --> E4[Epic 4 - Codex Runner]
+    E2 --> E5[Epic 5 - Antigravity]
 ```
 
 ## Referências relacionadas

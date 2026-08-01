@@ -8,4 +8,11 @@ public sealed class OcabOptions
     public const string SectionName = "Ocab";
 
     public string? McpToken { get; set; }
+
+    // SLICE-STAB-002 / ADR-0017: Basic Auth password shared with the
+    // OpenCode runner container (OPENCODE_SERVER_PASSWORD). If null or
+    // empty, no Authorization header is sent — the upstream is then
+    // expected to be running with OPENCODE_SERVER_PASSWORD unset
+    // (unsecured dev mode).
+    public string? OpenCodePassword { get; set; }
 }

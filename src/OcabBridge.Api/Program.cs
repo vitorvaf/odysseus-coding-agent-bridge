@@ -50,21 +50,36 @@ builder.Services.AddSingleton<RepositoryRepository>();
 builder.Services.AddSingleton<AgentRepository>();
 builder.Services.AddSingleton<IdempotencyRepository>();
 
-// Runner adapter (slice 1.1.3). HttpClient is configured via
-// AddHttpClient<TClient> so the OpenCode base URL is sourced from
-// OCAB__OpenCodeUrl env (or Ocab:OpenCodeUrl config).
+// Runner adapter (slice 1.1.3 / SLICE-STAB-002). HttpClient is configured
+// via AddHttpClient<TClient> so the OpenCode base URL is sourced from
+// OCAB__OpenCodeUrl env (or Ocab:OpenCodeUrl config). Basic Auth
+// credentials are attached by OpenCodeAuthHandler, reading
+// OCAB__OpenCodePassword (or Ocab:OpenCodePassword config) — same value
+// as OPENCODE_SERVER_PASSWORD in the runner container.
 var openCodeBaseUrl = builder.Configuration["Ocab:OpenCodeUrl"]
     ?? "http://ocab-opencode-runner:4096";
+builder.Services.AddTransient<OpenCodeAuthHandler>();
 builder.Services.AddHttpClient<OpenCodeAdapter>(c =>
 {
     c.BaseAddress = new Uri(openCodeBaseUrl);
     c.Timeout = TimeSpan.FromMinutes(5);
-});
+}).AddHttpMessageHandler<OpenCodeAuthHandler>();
 builder.Services.AddSingleton<IRunnerAdapter>(sp => sp.GetRequiredService<OpenCodeAdapter>());
 
 // Dispatcher + clock.
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<RunDispatcher>();
+
+// SLICE-STAB-003 / ADR-0018: awaitable execution coordination.
+// RunExecutionCoordinator owns the in-memory registry of active runs
+// (CTS + TCS); RunQueueWorker (BackgroundService) consumes the
+// persistent queue (runs table with status='Pending') and dispatches
+// each run via RunDispatcher.ExecuteAsync inside a scope. Replaces the
+// `_ = Task.Run(() => ExecuteAsync(...))` fire-and-forget that slice
+// 1.1.3 left in place.
+builder.Services.AddSingleton<RunExecutionCoordinator>();
+builder.Services.AddSingleton<IRunExecutionCoordinator>(sp => sp.GetRequiredService<RunExecutionCoordinator>());
+builder.Services.AddHostedService<RunQueueWorker>();
 
 // MCP server (slice 1.1.4 contract). Tool types registered via
 // WithToolsFromAssembly scan — the OcabMcpTools class carries the

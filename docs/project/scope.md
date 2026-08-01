@@ -24,8 +24,8 @@ Define o escopo do MVP do OCAB, os componentes cobertos, as restrições obrigat
 
 ## Fora de escopo do MVP
 
-* Codex Runner (entra na Fase 8).
-* Antigravity Runner (entra na Fase 9 após discovery).
+* Codex Runner (entra no Epic 4).
+* Antigravity Runner (entra no Epic 5 após discovery).
 * Push, merge, deploy e criação automática de pull request.
 * Execução de qualquer container com Docker socket.
 * Autenticação avançada multiusuário.
@@ -64,8 +64,8 @@ Todas as restrições abaixo são premissas bloqueadas. Qualquer mudança exige 
 | Odysseus | Integração via MCP | — |
 | Coding Agent Bridge | Sim | — |
 | OpenCode Runner | Sim | — |
-| Codex Runner | Não | Fase 8 |
-| Antigravity Runner | Não | Fase 9 |
+| Codex Runner | Não | Epic 4 |
+| Antigravity Runner | Não | Epic 5 |
 | PostgreSQL | Sim | — |
 | Artifact Storage (filesystem) | Sim | — |
 | ChromaDB | Não | Opcional |

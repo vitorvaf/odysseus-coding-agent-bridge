@@ -8,7 +8,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 
 * **Prioridade:**
   * `P0` — bloqueia início da Foundation.
-  * `P1` — bloqueia o primeiro vertical slice (Fase 3).
+  * `P1` — bloqueia o primeiro vertical slice (Slice 1.1.3).
   * `P2` — necessário antes do MVP.
   * `P3` — pós-MVP ou evolução.
 * **Bloqueia:** fase do roadmap afetada.
@@ -19,43 +19,44 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OQ-001 | SDK MCP exato | Pacote .NET para MCP Server com Streamable HTTP, autenticação e tools | Fase 1 | P0 | Arquiteto | POC + matriz comparativa em `docs/discovery/002-mcp-sdk-evaluation.md` | ADR atualizado ou substituto | Resolved | 0002 |
-| OQ-002 | .NET 8 vs .NET 10 | Ambiente tem .NET 8 e 10; ADR diz "baseline .NET 8" | Fase 1 | P0 | Arquiteto | Discovery 001 + ADR `0015-runtime-version.md` | Decisão registrada | Resolved | 0015 |
-| OQ-003 | Nome definitivo do projeto | "OCAB" como sigla de trabalho | Fase 0 | P0 | Sponsor | Aprovação explícita | Decisão em `project/project-charter.md` | Open | — |
-| OQ-004 | Mecanismo final de fila | ADR-0004 fixa PostgreSQL; revisar sob evidência | Fase 1 | P1 | Arquiteto | Benchmark com Testcontainers | ADR mantido ou substituto | Open | 0004 |
-| OQ-005 | Biblioteca de subprocessos | Como o bridge controlará processos | Fase 1 | P0 | Plataforma | POC em `docs/discovery/007-process-execution-evaluation.md` | Decisão registrada | Resolved | — |
-| OQ-006 | Geração de IDs | ULID vs UUID | Fase 1 | P2 | Plataforma | Testes de ordenação | Decisão registrada | Open | — |
-| OQ-090 | Auth MCP do OCAB | Bearer vs mTLS vs OIDC | Fase 1 | P0 | Segurança | POC em `docs/discovery/006-authentication-and-networking.md` | ADR substituto | Resolved | 0002, 0007 |
-| OQ-091 | Auth OpenCode | Basic (observado na source v1.18.7) vs outras opções | Fase 3 | P0 | Plataforma | Discovery 003 + validação no container | Decisão registrada | In progress | — |
+| OQ-001 | SDK MCP exato | Pacote .NET para MCP Server com Streamable HTTP, autenticação e tools | Epic 1 | P0 | Arquiteto | POC + matriz comparativa em `docs/discovery/002-mcp-sdk-evaluation.md` | ADR atualizado ou substituto | Resolved | 0002 |
+| OQ-002 | .NET 8 vs .NET 10 | Ambiente tem .NET 8 e 10; ADR diz "baseline .NET 8" | Epic 1 | P0 | Arquiteto | Discovery 001 + ADR `0015-runtime-version.md` | Decisão registrada | Resolved | 0015 |
+| OQ-003 | Nome definitivo do projeto | "OCAB" como sigla de trabalho | Milestone 0 | P0 | Sponsor | Aprovação explícita | Decisão em `project/project-charter.md` | Open | — |
+| OQ-004 | Mecanismo final de fila | ADR-0004 fixa PostgreSQL; revisar sob evidência | Epic 1 | P1 | Arquiteto | Benchmark com Testcontainers | ADR mantido ou substituto | Open | 0004 |
+| OQ-005 | Biblioteca de subprocessos | Como o bridge controlará processos | Epic 1 | P0 | Plataforma | POC em `docs/discovery/007-process-execution-evaluation.md` | Decisão registrada | Resolved | — |
+| OQ-006 | Geração de IDs | ULID vs UUID | Epic 1 | P2 | Plataforma | Testes de ordenação | Decisão registrada | Open | — |
+| OQ-090 | Auth MCP do OCAB | Bearer vs mTLS vs OIDC | Epic 1 | P0 | Segurança | POC em `docs/discovery/006-authentication-and-networking.md` | ADR substituto | Resolved | 0002, 0007 |
+| OQ-091 | Auth OpenCode | Basic (observado na source v1.18.7) vs outras opções | Slice 1.1.3 | P0 | Plataforma | Discovery 003 + validação no container | Decisão registrada | Resolved | — |
+| OQ-201 | Contract drift entre `OpenCodeAdapter` e OpenCode Server real | `src/OcabBridge.Api/Adapters/OpenCodeAdapter.cs` esperava JSON em `/sessions`, `/sessions/{id}/prompt`, `/sessions/{id}/cancel`. OpenCode Server real v1.17.20 retornava HTML SPA nessas rotas | Epic 1 → Epic 2 | P0 | Plataforma | Adapter alinhado à família singular `/session/*` conforme OpenAPI fixado em `v1.18.8`; contract tests 10/10 verdes contra runner real | Adapter alinhado, runner fixado, contract drift eliminado | Resolved | 0017 |
 
 ## Repositórios e workspaces
 
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OQ-010 | Repositório piloto | Sandbox dedicado, não usar projetos sensíveis | Fase 3 | P0 | Operador | Criar fixture local em `poc/fixtures/pilot-repo` | Slug cadastrado e validado | Resolved | 0014 |
-| OQ-011 | Estratégia de workspace | Clone, worktree, copy, --reference | Fase 5 | P0 | Plataforma | POC em `docs/discovery/005-workspace-strategy-evaluation.md` | ADR substituto | Resolved | 0005 |
-| OQ-012 | Submodules | Tratamento | Fase 5 | P2 | Plataforma | Teste em fixture com submódulo | Estratégia documentada | Open | — |
-| OQ-013 | Git LFS | Tratamento | Fase 5 | P2 | Plataforma | Teste em fixture com LFS | Estratégia documentada | Open | — |
-| OQ-014 | Alterações locais | Detecção e tratamento | Fase 5 | P2 | Plataforma | Teste em fixture suja | Estratégia documentada | Open | — |
+| OQ-010 | Repositório piloto | Sandbox dedicado, não usar projetos sensíveis | Slice 1.1.3 | P0 | Operador | Criar fixture local em `poc/fixtures/pilot-repo` | Slug cadastrado e validado | Resolved | 0014 |
+| OQ-011 | Estratégia de workspace | Clone, worktree, copy, --reference | Epic 2 | P0 | Plataforma | POC em `docs/discovery/005-workspace-strategy-evaluation.md` | ADR substituto | Resolved | 0005 |
+| OQ-012 | Submodules | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com submódulo | Estratégia documentada | Open | — |
+| OQ-013 | Git LFS | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com LFS | Estratégia documentada | Open | — |
+| OQ-014 | Alterações locais | Detecção e tratamento | Epic 2 | P2 | Plataforma | Teste em fixture suja | Estratégia documentada | Open | — |
 | OQ-015 | Monorepos | Estratégia futura | Operação | P3 | Plataforma | Análise | Estratégia documentada | Open | — |
 
 ## Runners
 
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OQ-020 | OpenCode lifecycle | Persistente vs por-Run vs efêmero | Fase 3 | P0 | Plataforma | Discovery 007 | Decisão registrada | Resolved | 0009 |
-| OQ-021 | Autenticação OpenCode | Basic Auth confirmada na source v1.18.7 | Fase 3 | P0 | Segurança | Validação no container | Decisão registrada | In progress | — |
-| OQ-022 | Autenticação Codex | A confirmar pós-MVP | Fase 8 | P1 | Plataforma | Discovery futuro | Estratégia definida | Open | — |
-| OQ-023 | Interface Antigravity | Em discovery | Fase 9 | P0 | Plataforma | Discovery externo | Discovery report | Open | 0011 |
-| OQ-024 | Retries | Política de retries em falhas transitórias | Fase 7 | P1 | Plataforma | Análise | Estratégia documentada | Open | — |
+| OQ-020 | OpenCode lifecycle | Persistente vs por-Run vs efêmero | Slice 1.1.3 | P0 | Plataforma | Discovery 007 | Decisão registrada | Resolved | 0009 |
+| OQ-021 | Autenticação OpenCode | Basic Auth confirmada na source v1.18.7 | Slice 1.1.3 | P0 | Segurança | Validação no container | Decisão registrada | In progress | — |
+| OQ-022 | Autenticação Codex | A confirmar pós-MVP | Epic 4 | P1 | Plataforma | Discovery futuro | Estratégia definida | Open | — |
+| OQ-023 | Interface Antigravity | Em discovery | Epic 5 | P0 | Plataforma | Discovery externo | Discovery report | Open | 0011 |
+| OQ-024 | Retries | Política de retries em falhas transitórias | Epic 2 | P1 | Plataforma | Análise | Estratégia documentada | Open | — |
 
 ## Segurança
 
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | OQ-030 | Rotação de credenciais | Procedimento | Operação | P1 | Segurança | Documentação | Procedimento em `operations/configuration.md` | Open | — |
-| OQ-031 | Limites CPU/memória | Padrão por runner | Fase 1 | P0 | Plataforma | Discovery 008 | Valores definidos | Resolved | — |
-| OQ-032 | Rede dos runners | Default deny + allowlist | Fase 1 | P0 | Segurança | Discovery 006 + 009 | Política definida | In progress | 0013 |
+| OQ-031 | Limites CPU/memória | Padrão por runner | Epic 1 | P0 | Plataforma | Discovery 008 | Valores definidos | Resolved | — |
+| OQ-032 | Rede dos runners | Default deny + allowlist | Epic 1 | P0 | Segurança | Discovery 006 + 009 | Política definida | In progress | 0013 |
 | OQ-033 | SBOM/scanning | Ferramenta e rotina | Operação | P2 | Segurança | Avaliação | Ferramenta escolhida | Open | — |
 | OQ-034 | Pentest | Ferramenta e rotina | Operação | P2 | Segurança | Avaliação | Ferramenta escolhida | Open | — |
 
@@ -74,8 +75,8 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OQ-050 | Tamanho máximo de diff | Limite em `run_diff` | Fase 4 | P1 | Plataforma | Teste com patch grande | Valor em `specs/004-mcp-contract/spec.md` | Open | — |
-| OQ-051 | Tamanho máximo de prompt | Limite em `run_create` | Fase 1 | P0 | Plataforma | Análise | Valor definido | Resolved | — |
+| OQ-050 | Tamanho máximo de diff | Limite em `run_diff` | Slice 1.1.4 | P1 | Plataforma | Teste com patch grande | Valor em `specs/004-mcp-contract/spec.md` | Open | — |
+| OQ-051 | Tamanho máximo de prompt | Limite em `run_create` | Epic 1 | P0 | Plataforma | Análise | Valor definido | Resolved | — |
 | OQ-052 | Limite de eventos | Por execução | Operação | P2 | Plataforma | Análise | Valor definido | Open | — |
 | OQ-053 | Tamanho máximo de artefato | Por arquivo/execução | Operação | P2 | Plataforma | Análise | Valor em `specs/009-artifact-management/spec.md` | Open | — |
 
@@ -98,13 +99,14 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | OQ-080 | Amostragem de traces | Pós-MVP | Operação | P2 | Operações | Avaliação | Decisão registrada | Open | — |
-| OQ-081 | Ferramenta final | Prometheus + Grafana? OTLP-only? | Fase 1 | P1 | Operações | POC | Decisão registrada | Open | — |
+| OQ-081 | Ferramenta final | Prometheus + Grafana? OTLP-only? | Epic 1 | P1 | Operações | POC | Decisão registrada | Open | — |
 
 ## Governance
 
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OQ-100 | Licença do repositório | LICENSE está como Apache-2.0; foi decisão não autorizada | — | P1 | Sponsor | Aprovação explícita do sponsor | LICENSE confirmado ou substituído | Open | — |
+| OQ-100 | Licença do repositório | LICENSE está como Apache-2.0; foi decisão não autorizada | — | P1 | Sponsor | Aprovação explícita do sponsor | LICENSE confirmado ou substituído | Resolved | 0016 |
+| OQ-200 | Estabilização do Epic 1 | PR `chore(stabilization)` deve fechar 4 pendências: validação OpenCode real ponta a ponta, rede de testes automatizados + CI, decisão de licença, correção de nomenclatura Milestone/Epic/Slice | Epic 1 → Epic 2 | P1 | Plataforma | Smoke test contra OpenCode real com provedor determinístico; pipeline verde; OQ-100 resolvida; docs atualizados | PR mergeado e gate considerado fechado | Open (reaberta em 2026-07-28; STAB-004 cobriu 1/4 cenários `OpenCodeRealLifecycleTests` com OpenCode real — `error_failed` passa; `cancel`, `timeout`, `completed` continuam pendentes porque `opencode.json` em v1.18.8 não carrega o `baseURL` configurado. Resolução trackada em `STAB-005` — `STAB-005` endereçará configuração de provider via `auth.json` override, Docker DNS rebinding, ou CLI flag.) | 0017, 0018 |
 
 ## Próximos passos obrigatórios (P0)
 
@@ -128,7 +130,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 4. Atualizar ADR ou nota técnica.
 5. Marcar `Status` como `Resolved` e adicionar referência cruzada.
 
-## Status consolidado após Fase 0
+## Status consolidado após Milestone 0
 
 | ID | Status final |
 | --- | --- |
@@ -154,7 +156,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-032 | In progress (implementação em slice 1.1.1) |
 | OQ-033 | Open |
 | OQ-034 | Open |
-| OQ-040 a OQ-045 | Open (Fase 10) |
+| OQ-040 a OQ-045 | Open (Epic 3) |
 | OQ-050 | Open |
 | OQ-051 | Resolved |
 | OQ-052 | Open |
@@ -164,5 +166,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-071 | Open |
 | OQ-080, OQ-081 | Open |
 | OQ-090 | Resolved |
-| OQ-091 | Resolved (forma Bearer definida; validação no container fica para 1.1.3) |
-| OQ-100 | Open (aguardando autorização do sponsor) |
+| OQ-091 | Resolved (Basic via `OPENCODE_SERVER_PASSWORD` validado em discovery/011) |
+| OQ-100 | Resolved (ADR-0016; Apache-2.0 aceito em 2026-07-28) |
+| OQ-200 | Open (reaberta em 2026-07-28: `DeterministicCoordinatorTests` valida apenas o caminho coordinator + dispatcher + adapter com MockRunnerAdapter; o caminho OCAB → OpenCode real → provider determinístico → eventos reais ainda precisa ser exercitado. Cobertura completa depende da `SLICE-STAB-004`.) |
+| OQ-201 | Resolved (adapter alinhado, contract drift eliminado, contract tests 10/10 verdes) |

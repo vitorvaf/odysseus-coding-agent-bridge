@@ -79,7 +79,7 @@ Como integrar o Codex sem acoplá-lo ao OpenCode e respeitando as garantias comu
 
 ## Fora de escopo
 
-* Implementação antes da Fase 8 do roadmap.
+* Implementação antes do Epic 4 do roadmap.
 
 ## Estratégia de entrega (futura)
 
