@@ -29,7 +29,7 @@ Define marcos do projeto.
 * Bridge responde em `/health`, `/ready`, `/metrics`.
 * PostgreSQL em execução.
 * Logs estruturados.
-* Stabilization gate ativo (validação OpenCode real, testes automatizados, CI, licença Apache-2.0, renomeação Milestone/Epic/Slice).
+* Stabilization gate **fechado** (PR #3 `6e21573f` — `STAB-005A.3`: completion real provado via `GET /session/{id}/message`; validação OpenCode real, testes automatizados, CI, licença Apache-2.0, renomeação Milestone/Epic/Slice).
 
 ## M2 — Vertical read-only com OpenCode (Epic 1 completo)
 

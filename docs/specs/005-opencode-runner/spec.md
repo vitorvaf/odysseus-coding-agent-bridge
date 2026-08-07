@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed (atualizada em 2026-07-28 pelas `SLICE-STAB-002` para refletir o OpenAPI fixado em `v1.18.8` — ver [ADR-0017](../adr/0017-pin-opencode-version.md) e [Discovery 012](../discovery/012-opencode-contract-spike.md); e novamente pela `SLICE-STAB-003` para incluir o caminho de provider customizado determinístico — ver [ADR-0018](../adr/0018-persistent-run-queue.md) e [Discovery 014](../discovery/014-deterministic-e2e-lifecycle.md)). Promover para `Accepted` após smoke test ponta a ponta verde com provedor determinístico.
+Proposed (atualizada em 2026-07-31 pela `SLICE-STAB-005` para distinguir a cobertura do coordinator da prova contra OpenCode real. Os testes com `MockRunnerAdapter` validam o coordinator/dispatcher, mas não comprovam o OpenCode v1.18.8 real. `OCR-AC-012` permanece `Not Implemented` até a evidência final ser executada e publicada em [Discovery 015](../../discovery/015-opencode-real-provider-poc.md). Promover para `Accepted` somente após os quatro cenários `RealOpenCodePoc` verdes.)
 
 ## Resumo
 
@@ -157,7 +157,7 @@ Como integrar o OpenCode Server de forma isolada, cancelável, observável, pina
 * **OCR-AC-009** A versão upstream e o checksum do contrato são registrados em cada `Run` (campos `UpstreamVersion` e `ContractChecksum`).
 * **OCR-AC-010** 401 (sem Basic Auth ou senha incorreta) é normalizado para `runner_auth_failed`; 404 (`session_not_found`), 409 (`session_conflict`), 429 (`runner_rate_limited`) e 5xx (`runner_unavailable`) são normalizados analogamente.
 * **OCR-AC-011** Smoke test ponta a ponta (cliente MCP → `run_create` → bridge → OpenCode → sessão real → prompt read-only → eventos → relatório; também `run_cancel`, timeout, runner indisponível, credencial inválida, resposta incompatível) é executado e a evidência é publicada em `docs/discovery/013-...`.
-* **OCR-AC-012** Provider customizado determinístico (compatível com OpenAI `/v1/chat/completions`) é configurado via `opencode.json` em `provider.custom.<name>.baseURL` apontando para serviço HTTP local; o adapter continua agnóstico ao provider e o ciclo completo read-only (`Pending → Running → Completed` com resposta persistida) é validado sem dependência de credencial paga. O OpenCode real permanece no caminho; apenas a inferência é determinística. Coberto por `tests/OcabBridge.IntegrationTests/DeterministicCoordinatorTests` (vide `Discovery 014`).
+* **OCR-AC-012** **Status: Partially Implemented (PR #3 `6e21573f`).** Provider customizado determinístico (compatível com OpenAI `/v1/chat/completions`) é configurado via `OPENCODE_CONFIG_CONTENT`/`opencode.json` em `provider.<name>.api` e credencial isolada por `OPENCODE_AUTH_CONTENT`; o adapter permanece agnóstico ao provider. Completion real é provado pelo teste `RealOpenCode_completion_returns_known_response` com `runs.result == "OCAB_PROVIDER_OK"`. Cenários `RealOpenCodePoc` `cancel` (abort real), `timeout` (cancelamento upstream) e `provider-error` permanecem como follow-up e devem ser cobertos após a SLICE-WORKSPACE-001. Promover para `Accepted` somente após os quatro cenários `RealOpenCodePoc` verdes. Evidência: [Discovery 015](../../discovery/015-opencode-real-provider-poc.md).
 
 ## Dependências
 

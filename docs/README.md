@@ -9,7 +9,7 @@ Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planni
 | Milestone / Epic | Status | Evidência |
 | --- | --- | --- |
 | Milestone 0 — Discovery | **Concluído** | [`discovery/phase-0-report.md`](discovery/phase-0-report.md); commits `62e9bcf`, `95d8f04` |
-| Epic 1 — MVP Read-Only (Slices 1.1.1–1.1.4) | **Concluído com follow-ups** | smoke test contra stack real; commits `f6ded6e`, `ff26974`, `d65fc5c`, `da4c3b7`, `95d8f04`; stabilization gate em curso |
+| Epic 1 — MVP Read-Only (Slices 1.1.1–1.1.4) | **Concluído** | smoke test contra stack real; commits `f6ded6e`, `ff26974`, `d65fc5c`, `da4c3b7`, `95d8f04`, `6e21573f`; stabilization gate fechado pela PR #3 (`STAB-005A.3`) |
 | Epic 2 — MVP Workspace-Write (Slices 2.1.1–2.2.2) | Pendente | bloqueia em `specs/007-workspace-isolation` + `003-run-lifecycle` diferidos |
 | Epic 3 — Operations | Pendente | pós-MVP (ADR-0012) |
 | Epic 4 — Codex Runner | Pendente | pós-MVP (ADR-0010) |
@@ -118,6 +118,7 @@ Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planni
 * [`planning/dependency-map.md`](planning/dependency-map.md) — dependências entre fases.
 * [`planning/milestones.md`](planning/milestones.md) — marcos.
 * [`planning/backlog.md`](planning/backlog.md) — backlog hierárquico.
+* [`planning/slices/SLICE-WORKSPACE-001.md`](planning/slices/SLICE-WORKSPACE-001.md) — slice operacional do Workspace Manager (Slice 2.1.1).
 * [`planning/risk-register.md`](planning/risk-register.md) — risk register.
 * [`planning/definition-of-done.md`](planning/definition-of-done.md) — definition of done.
 
@@ -136,7 +137,9 @@ Status do MVP baseado em [`planning/roadmap.md`](planning/roadmap.md) e [`planni
 * [`discovery/008-resource-limits-baseline.md`](discovery/008-resource-limits-baseline.md)
 * [`discovery/009-security-discovery.md`](discovery/009-security-discovery.md)
 * [`discovery/010-discovery-decisions.md`](discovery/010-discovery-decisions.md)
-* [`discovery/phase-0-report.md`](discovery/phase-0-report.md)
+* [`discovery/014-deterministic-e2e-lifecycle.md`](discovery/014-deterministic-e2e-lifecycle.md)
+* [`discovery/015-opencode-real-provider-poc.md`](discovery/015-opencode-real-provider-poc.md)
+* [`discovery/016-workspace-manager-scope.md`](discovery/016-workspace-manager-scope.md)
 
 ### Globais
 * [`open-questions.md`](open-questions.md) — questões em aberto.

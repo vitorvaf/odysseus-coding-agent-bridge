@@ -57,13 +57,6 @@ jobs:
           --collect:"XPlat Code Coverage"
           --results-directory ./artifacts/unit
 
-      - name: verify unit test results
-        if: always()
-        run: |
-          mkdir -p ./artifacts/unit
-          python3 .github/workflows/verify/verify_trx.py \
-            "$(find ./artifacts/unit -name '*.trx' | head -n 1)"
-
       - name: contract tests
         id: contract-tests
         continue-on-error: true
@@ -73,13 +66,6 @@ jobs:
           --logger trx --logger "console;verbosity=normal"
           --collect:"XPlat Code Coverage"
           --results-directory ./artifacts/contract
-
-      - name: verify contract test results
-        if: always()
-        run: |
-          mkdir -p ./artifacts/contract
-          python3 .github/workflows/verify/verify_trx.py \
-            "$(find ./artifacts/contract -name '*.trx' | head -n 1)"
 
       - name: integration tests
         id: integration-tests
@@ -91,29 +77,66 @@ jobs:
           --collect:"XPlat Code Coverage"
           --results-directory ./artifacts/integration
 
-      - name: verify integration test results
-        if: always()
-        run: |
-          mkdir -p ./artifacts/integration
-          python3 .github/workflows/verify/verify_trx.py \
-            "$(find ./artifacts/integration -name '*.trx' | head -n 1)"
-
       - name: security tests
         id: security-tests
         continue-on-error: true
         run: >-
           dotnet test tests/OcabBridge.SecurityTests/OcabBridge.SecurityTests.csproj
-          -c Release --no-build
-          --logger trx --logger "console;verbosity=normal"
-          --collect:"XPlat Code Coverage"
+          -c Release
+          --logger "trx;LogFileName=security.trx" --logger "console;verbosity=normal"
           --results-directory ./artifacts/security
+
+      - name: verify unit test results
+        if: always()
+        run: |
+          mkdir -p ./artifacts/unit
+          TRX_FILE="$(find ./artifacts/unit -name '*.trx' 2>/dev/null | head -n 1)"
+          if [ -z "$TRX_FILE" ]; then
+            echo "::error::No TRX file found under ./artifacts/unit"
+            echo "::error::Directory listing:"
+            ls -laR ./artifacts/unit 2>&1 || echo "(directory missing)"
+            exit 1
+          fi
+          python3 .github/workflows/verify/verify_trx.py "$TRX_FILE"
+
+      - name: verify contract test results
+        if: always()
+        run: |
+          mkdir -p ./artifacts/contract
+          TRX_FILE="$(find ./artifacts/contract -name '*.trx' 2>/dev/null | head -n 1)"
+          if [ -z "$TRX_FILE" ]; then
+            echo "::error::No TRX file found under ./artifacts/contract"
+            echo "::error::Directory listing:"
+            ls -laR ./artifacts/contract 2>&1 || echo "(directory missing)"
+            exit 1
+          fi
+          python3 .github/workflows/verify/verify_trx.py "$TRX_FILE"
+
+      - name: verify integration test results
+        if: always()
+        run: |
+          mkdir -p ./artifacts/integration
+          TRX_FILE="$(find ./artifacts/integration -name '*.trx' 2>/dev/null | head -n 1)"
+          if [ -z "$TRX_FILE" ]; then
+            echo "::error::No TRX file found under ./artifacts/integration"
+            echo "::error::Directory listing:"
+            ls -laR ./artifacts/integration 2>&1 || echo "(directory missing)"
+            exit 1
+          fi
+          python3 .github/workflows/verify/verify_trx.py "$TRX_FILE"
 
       - name: verify security test results
         if: always()
         run: |
           mkdir -p ./artifacts/security
-          python3 .github/workflows/verify/verify_trx.py \
-            "$(find ./artifacts/security -name '*.trx' | head -n 1)"
+          TRX_FILE="$(find ./artifacts/security -name '*.trx' 2>/dev/null | head -n 1)"
+          if [ -z "$TRX_FILE" ]; then
+            echo "::error::No TRX file found under ./artifacts/security"
+            echo "::error::Directory listing:"
+            ls -laR ./artifacts/security 2>&1 || echo "(directory missing)"
+            exit 1
+          fi
+          python3 .github/workflows/verify/verify_trx.py "$TRX_FILE"
 
       - name: docker compose config
         run: docker compose -f compose.yaml config --quiet

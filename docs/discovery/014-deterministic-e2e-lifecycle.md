@@ -129,13 +129,13 @@ Status (atualizado 2026-07-28 após STAB-004):
 * [x] **SLICE-STAB-004 Commit 5**: `OpenCodeRealLifecycleTests.RealOpenCode_error_failed` passa com OpenCode real. — 401 → `runner_auth_failed` → Failed (cenário de OpenCode mal-configurado).
 * [x] **SLICE-STAB-004 Commit 5**: Coordinator RODA contra OpenCode real — `OpenCodeRealLifecycleTests` com `IClassFixture<OpenCodeRealFixture>` + per-test `XDG_CONFIG_HOME`.
 * [x] **SLICE-STAB-004 Commit 5**: Lifecycle TEM ownership explícito — `OpenCodeRealFixture` faz SIGTERM→grace→SIGKILL, valida porta liberada (`IsPortOpen`), limpa `XDG_CONFIG_HOME` per-test.
-* [~] **SLICE-STAB-005** (follow-up): `RealOpenCode_blocked_cancelled_with_abort_call` (cancel com `POST /session/{id}/abort`) — Skip, requer provider configurado.
-* [~] **SLICE-STAB-005** (follow-up): `RealOpenCode_slow_timedout` (timeout com cancelamento upstream) — Skip, requer provider configurado.
-* [~] **SLICE-STAB-005** (follow-up): `RealOpenCode_normal_completed_via_deterministic_provider` (Completed com relatório persistido) — Skip, requer provider configurado.
+* [~] **SLICE-STAB-005A** (follow-up): `RealOpenCode_blocked_cancelled_with_abort_call` (cancel com `POST /session/{id}/abort`) — Skip, fora do escopo da STAB-005A.3 (PR #3 `6e21573f`).
+* [~] **SLICE-STAB-005A** (follow-up): `RealOpenCode_slow_timedout` (timeout com cancelamento upstream) — Skip, fora do escopo da STAB-005A.3 (PR #3 `6e21573f`).
+* [x] **SLICE-STAB-005A.3** (PR #3 `6e21573f`): `RealOpenCode_normal_completed_via_deterministic_provider` — Completed com `runs.result == "OCAB_PROVIDER_OK"` provado via `GET /session/{id}/message`.
 * [x] **SLICE-STAB-004 Commit 1**: CI gate enforça `failed > 0 → job failed` (`.github/workflows/verify/verify_trx.py`). — O workflow não passa mais a verde com testes falhando silenciosamente.
 * [x] **SLICE-STAB-004 Commit 2**: CI warnings resolvidos — actions v5/v6 (Node 24 runtime) + gitleaks via CLI direta. — `File.SetUnixFileMode` gated por `OperatingSystem.IsWindows()`.
 * [x] Testes locais verdes — **21/21** (1/1 Unit + 10/10 Contract + 9/9 Integration + 1/1 Security, com 3 skip explícitos).
-* [ ] `OQ-200` fechada com evidência real — **continua Open**; o re-fechamento depende de STAB-005 (provider configurado) + os 3 tests restantes passarem.
+* [x] `OQ-200` fechada com evidência real — **Resolved** (PR #3 `6e21573f`; completion real provado via `GET /session/{id}/message`; `cancel`/`timeout`/`provider-error` permanecem como follow-up).
 * [x] `OQ-201` fechada com referência à nova evidência — `Resolved` (10/10 contract tests confirmam).
 
 ## Próximos passos

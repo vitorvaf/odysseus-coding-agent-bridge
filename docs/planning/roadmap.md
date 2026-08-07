@@ -24,6 +24,8 @@ Roadmap incremental do OCAB organizado em **Milestones** e **Epics**, com **Slic
 
 ### Slice 1.1.1 — Foundation
 
+**Status:** Implemented
+
 **Objetivo:** estabelecer a base técnica do OCAB.
 
 **Entregáveis:**
@@ -39,6 +41,8 @@ Roadmap incremental do OCAB organizado em **Milestones** e **Epics**, com **Slic
 
 ### Slice 1.1.2 — Repository Registry
 
+**Status:** Implemented
+
 **Objetivo:** permitir cadastro e uso de repositórios por slug.
 
 **Entregáveis:**
@@ -51,6 +55,8 @@ Roadmap incremental do OCAB organizado em **Milestones** e **Epics**, com **Slic
 **Critério de saída:** repositórios cadastrados podem ser listados e usados.
 
 ### Slice 1.1.3 — OpenCode Read-Only Vertical Slice
+
+**Status:** Implemented
 
 **Objetivo:** primeira fatia vertical realmente utilizável — execução read-only ponta a ponta via MCP.
 
@@ -74,6 +80,8 @@ Roadmap incremental do OCAB organizado em **Milestones** e **Epics**, com **Slic
 
 ### Slice 1.1.4 — MCP Contract Completion
 
+**Status:** Implemented
+
 **Objetivo:** completar o contrato MCP e endurecer os aspectos transversais.
 
 **Entregáveis:**
@@ -91,11 +99,26 @@ Roadmap incremental do OCAB organizado em **Milestones** e **Epics**, com **Slic
 
 **Critério de saída:** todas as ferramentas MCP estão expostas com autenticação, paginação, idempotência, versionamento e limites validados.
 
+### Stabilization — OpenCode real lifecycle e fila persistente
+
+**Status:** Implemented (gate `STAB-005A` fechado)
+
+Endurecimento do vertical read-only entregue antes de iniciar o Epic 2, validado por testes automatizados reais contra o OpenCode e CI:
+
+* Contrato do adapter `OpenCode` alinhado ao upstream **v1.18.8** pinado ([ADR-0017](../adr/0017-pin-opencode-version.md)); completion provado via `GET /session/{id}/message` (terminal authority) com `GET /event` como pump SSE auxiliar.
+* Fila de execuções persistente com worker em background, coordenação awaitable, cancelamento e timeout end-to-end ([ADR-0018](../adr/0018-persistent-run-queue.md)).
+* Lifecycle determinístico e real do `OpenCode` coberto por testes (Contract, Integration); gate `STAB-005A` fechado em [`../discovery/011-opencode-real-validation.md`](../discovery/011-opencode-real-validation.md), [`../discovery/014-deterministic-e2e-lifecycle.md`](../discovery/014-deterministic-e2e-lifecycle.md) e [`../discovery/015-opencode-real-provider-poc.md`](../discovery/015-opencode-real-provider-poc.md).
+* CI com quality gates, varredura de segredos e licença Apache-2.0 ([ADR-0016](../adr/0016-apache-2.0-license.md)).
+
+> Cenários `cancel` / `timeout` / `provider-error` do POC real permanecem como follow-up fora do escopo desta entrega (ver [`../open-questions.md`](../open-questions.md)).
+
 ## Epic 2 — MVP Workspace-Write
 
 ### Capability 2.1 — Workspace isolado
 
 #### Slice 2.1.1 — Workspace Manager
+
+**Status:** Planned (discovery concluído; implementação não iniciada)
 
 **Objetivo:** permitir alterações em workspace dedicado.
 
@@ -107,6 +130,11 @@ Roadmap incremental do OCAB organizado em **Milestones** e **Epics**, com **Slic
 * Cleanup idempotente com lock por runId.
 
 **Critério de saída:** execução workspace-write cria workspace isolado, mantém repositório original intocado e executa cleanup após retenção.
+
+**Documentação:**
+
+* Escopo autoritativo: [`../discovery/016-workspace-manager-scope.md`](../discovery/016-workspace-manager-scope.md).
+* Documento operacional: [`../planning/slices/SLICE-WORKSPACE-001.md`](../planning/slices/SLICE-WORKSPACE-001.md) (fase de planejamento — implementação não iniciada).
 
 #### Slice 2.1.2 — Git diff e status
 

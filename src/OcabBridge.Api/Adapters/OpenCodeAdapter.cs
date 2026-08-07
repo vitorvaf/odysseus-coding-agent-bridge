@@ -72,6 +72,198 @@ public sealed class OpenCodeAdapter : IRunnerAdapter
             ContractChecksum: _metadata?.ContractChecksum);
     }
 
+    public async Task<RunnerEventStream> OpenEventStreamAsync(
+        string sessionId,
+        CancellationToken ct)
+    {
+        // Per OpenCode v1.18.8, the SSE stream lives on EventApi at /event
+        // and is scoped to the workspace via the `directory` query param.
+        // The workspace equals the pilot repository for the POC.
+        var workspaceDir = Environment.GetEnvironmentVariable("OCAB_OPENCODE_WORKSPACE_DIR");
+        var url = "/event";
+        if (!string.IsNullOrWhiteSpace(workspaceDir))
+        {
+            url += "?directory=" + Uri.EscapeDataString(workspaceDir);
+        }
+        var resp = await _http.GetAsync(
+            url,
+            HttpCompletionOption.ResponseHeadersRead,
+            ct);
+        await EnsureSuccessAsync(resp, "open_event_stream", ct);
+
+        // Connection is established here. Wrap the live HttpResponseMessage
+        // into a RunnerEventStream handle that the dispatcher can iterate
+        // after calling SendPromptAsync.
+        return new RunnerEventStream(
+            sessionId,
+            innerCt => ReadSseEventsAsync(resp, innerCt));
+    }
+
+    public async Task<RunnerTerminalResult> WaitForTerminalResultAsync(
+        string sessionId,
+        TimeSpan pollInterval,
+        CancellationToken cancellationToken)
+    {
+        // Terminal authority for OpenCode v1.18.8 lives in the session
+        // message list, not the SSE stream. We poll GET
+        // /session/{id}/message every pollInterval (100-250ms per the
+        // STAB-005A.3 contract) and stop as soon as the last assistant
+        // message reports finish="stop" or any error is present.
+        if (pollInterval < TimeSpan.FromMilliseconds(100))
+        {
+            pollInterval = TimeSpan.FromMilliseconds(100);
+        }
+        if (pollInterval > TimeSpan.FromMilliseconds(250))
+        {
+            pollInterval = TimeSpan.FromMilliseconds(250);
+        }
+
+        RunnerTerminalResult? result = null;
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            using var resp = await _http.GetAsync(
+                $"/session/{Uri.EscapeDataString(sessionId)}/message",
+                cancellationToken);
+            await EnsureSuccessAsync(resp, "wait_for_terminal", cancellationToken);
+            var body = await resp.Content.ReadAsStringAsync(cancellationToken);
+            result = TryParseTerminalFromMessages(body);
+            if (result is not null) return result;
+            try { await Task.Delay(pollInterval, cancellationToken); }
+            catch (OperationCanceledException) { throw; }
+        }
+        // Loop exits only when the caller's CT is cancelled. The Run
+        // dispatcher's catch for OperationCanceledException will route
+        // the cancellation to TimedOut/Cancelled; we return the last
+        // observed state (or failure) so the caller has evidence.
+        return result ?? new RunnerTerminalResult(
+            false, null, "cancelled_before_terminal", string.Empty);
+    }
+
+    // Inspects the JSON array returned by GET /session/{id}/message and
+    // returns a terminal result when the last assistant message is
+    // finished (finish="stop" and no error) or reports an error.
+    // Returns null when no terminal signal is present yet.
+    private static RunnerTerminalResult? TryParseTerminalFromMessages(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return null;
+            JsonElement? lastAssistantInfo = null;
+            JsonElement? lastAssistantMessage = null;
+            string? lastSessionId = null;
+            foreach (var msg in doc.RootElement.EnumerateArray())
+            {
+                if (msg.ValueKind != JsonValueKind.Object) continue;
+                if (!msg.TryGetProperty("info", out var info)
+                    || info.ValueKind != JsonValueKind.Object) continue;
+                if (!info.TryGetProperty("role", out var roleEl)
+                    || roleEl.ValueKind != JsonValueKind.String) continue;
+                if (!string.Equals(roleEl.GetString(), "assistant", StringComparison.Ordinal)) continue;
+                if (info.TryGetProperty("sessionID", out var sidEl)
+                    && sidEl.ValueKind == JsonValueKind.String)
+                {
+                    lastSessionId = sidEl.GetString();
+                }
+                lastAssistantInfo = info.Clone();
+                lastAssistantMessage = msg.Clone();
+            }
+            if (lastAssistantInfo is null) return null;
+            var root = lastAssistantInfo.Value;
+
+            // Error signal wins over success regardless of finish value.
+            // Only treat it as a terminal error when the error object
+            // carries a non-empty `name` field — the v1.18.8 schema
+            // may include an empty error placeholder on success paths.
+            if (root.TryGetProperty("error", out var errEl)
+                && errEl.ValueKind == JsonValueKind.Object
+                && errEl.TryGetProperty("name", out var errNameEl)
+                && errNameEl.ValueKind == JsonValueKind.String
+                && !string.IsNullOrEmpty(errNameEl.GetString()))
+            {
+                var errJson = errEl.GetRawText();
+                return new RunnerTerminalResult(false, null, errJson, body);
+            }
+            if (!root.TryGetProperty("finish", out var finishEl)
+                || finishEl.ValueKind != JsonValueKind.String)
+            {
+                return null;
+            }
+            var finish = finishEl.GetString();
+            if (!string.Equals(finish, "stop", StringComparison.Ordinal))
+            {
+                return null;
+            }
+            // Success: concatenate text parts and expose provider/model ids.
+            // In v1.18.8 the parts[] lives at the message level (sibling
+            // of info), not inside info. The text extraction therefore
+            // reads from the message, not from the info object.
+            var text = lastAssistantMessage is not null
+                ? ExtractTextFromMessageParts(lastAssistantMessage.Value)
+                : null;
+            var providerId = root.TryGetProperty("providerID", out var pidEl)
+                && pidEl.ValueKind == JsonValueKind.String
+                ? pidEl.GetString()
+                : null;
+            var modelId = root.TryGetProperty("modelID", out var midEl)
+                && midEl.ValueKind == JsonValueKind.String
+                ? midEl.GetString()
+                : null;
+            var messageId = root.TryGetProperty("id", out var idEl)
+                && idEl.ValueKind == JsonValueKind.String
+                ? idEl.GetString()
+                : null;
+            var report = new Dictionary<string, object?>
+            {
+                ["text"] = text,
+                ["sessionId"] = lastSessionId ?? "",
+                ["providerId"] = providerId,
+                ["modelId"] = modelId,
+                ["messageId"] = messageId,
+            };
+            var reportJson = JsonSerializer.Serialize(report);
+            return new RunnerTerminalResult(
+                !string.IsNullOrEmpty(text),
+                text,
+                null,
+                reportJson);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    // Concatenates the text of all parts where type == "text" in the
+    // assistant message. The OpenCode v1.18.8 message shape places
+    // the model output in parts[].text and the terminal metadata in
+    // the last step-finish part. We only extract the text parts because
+    // tool calls and step markers carry no payload.
+    private static string? ExtractTextFromMessageParts(JsonElement message)
+    {
+        if (!message.TryGetProperty("parts", out var partsEl)
+            || partsEl.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+        var sb = new System.Text.StringBuilder();
+        foreach (var part in partsEl.EnumerateArray())
+        {
+            if (part.ValueKind != JsonValueKind.Object) continue;
+            if (part.TryGetProperty("type", out var typeEl)
+                && typeEl.ValueKind == JsonValueKind.String
+                && string.Equals(typeEl.GetString(), "text", StringComparison.Ordinal)
+                && part.TryGetProperty("text", out var textEl)
+                && textEl.ValueKind == JsonValueKind.String)
+            {
+                if (sb.Length > 0) sb.Append('\n');
+                sb.Append(textEl.GetString());
+            }
+        }
+        return sb.Length == 0 ? null : sb.ToString();
+    }
+
     public async Task SendPromptAsync(string sessionId, string prompt, CancellationToken ct)
     {
         using var resp = await _http.PostAsJsonAsync(
@@ -92,25 +284,99 @@ public sealed class OpenCodeAdapter : IRunnerAdapter
         string sessionId,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        // Global SSE event stream. The server emits SSE events tagged with
-        // type; the dispatcher forwards each as opaque JSON to RunEvent.
         using var resp = await _http.GetAsync(
             "/event",
             HttpCompletionOption.ResponseHeadersRead,
             ct);
         await EnsureSuccessAsync(resp, "subscribe_event", ct);
 
-        await using var stream = await resp.Content.ReadAsStreamAsync(ct);
-        using var reader = new StreamReader(stream);
+        await foreach (var evt in ReadSseEventsAsync(resp, ct).ConfigureAwait(false).WithCancellation(ct))
+        {
+            yield return evt;
+        }
+    }
 
-        while (!reader.EndOfStream)
+    private static async IAsyncEnumerable<RunnerEvent> ReadSseEventsAsync(
+        HttpResponseMessage resp,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+
+        // The OpenCode v1.18.8 SSE handler closes the chunked stream
+        // without sending the terminating zero-length chunk after the
+        // assistant message is committed. Reading the response with
+        // StreamReader.ReadLineAsync then blocks indefinitely waiting
+        // for the next chunk and only throws HttpIOException when the
+        // caller's HttpClient.Timeout fires. To avoid that, read raw
+        // bytes with a per-read inactivity timeout; whenever the
+        // timeout elapses without new bytes we treat the stream as
+        // gracefully closed and yield break.
+        var inactivity = TimeSpan.FromSeconds(30);
+        var buffer = new System.IO.MemoryStream();
+        var lineBuffer = new System.Text.StringBuilder();
+        var lastByteAt = DateTimeOffset.UtcNow;
+
+        while (true)
         {
             if (ct.IsCancellationRequested) yield break;
-            var line = await reader.ReadLineAsync(ct);
-            if (string.IsNullOrWhiteSpace(line)) continue;
-            if (!line.StartsWith("data:", StringComparison.Ordinal)) continue;
-            var payload = line.Substring("data:".Length).Trim();
-            yield return ParseEvent(payload);
+            var remaining = inactivity - (DateTimeOffset.UtcNow - lastByteAt);
+            if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
+            using var inactivityCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            inactivityCts.CancelAfter(remaining == TimeSpan.Zero ? TimeSpan.FromMilliseconds(1) : remaining);
+            var tmp = new byte[4096];
+            int read;
+            try
+            {
+                read = await stream.ReadAsync(tmp.AsMemory(0, tmp.Length), inactivityCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Inactivity timeout: treat as graceful shutdown. The
+                // OpenCode v1.18.8 SSE handler has emitted the terminal
+                // events and closed the stream; the next read would
+                // otherwise block forever.
+                yield break;
+            }
+            catch (HttpIOException) { yield break; }
+            catch (IOException) { yield break; }
+            if (read <= 0) yield break;
+            lastByteAt = DateTimeOffset.UtcNow;
+            buffer.Write(tmp, 0, read);
+            buffer.Position = 0;
+            for (int i = 0; i < read; i++)
+            {
+                int b = buffer.ReadByte();
+                if (b < 0) break;
+                if (b == '\n')
+                {
+                    var line = lineBuffer.ToString();
+                    lineBuffer.Clear();
+                    if (line.EndsWith('\r')) line = line.Substring(0, line.Length - 1);
+                    if (!string.IsNullOrWhiteSpace(line)
+                        && line.StartsWith("data:", StringComparison.Ordinal))
+                    {
+                        var payload = line.Substring("data:".Length).Trim();
+                        yield return ParseEvent(payload);
+                    }
+                }
+                else
+                {
+                    lineBuffer.Append((char)b);
+                }
+            }
+            // Drain everything we have already consumed from the buffer.
+            var leftover = (int)(buffer.Length - buffer.Position);
+            if (leftover > 0)
+            {
+                var keep = new byte[leftover];
+                for (int i = 0; i < leftover; i++) keep[i] = (byte)buffer.ReadByte();
+                buffer.SetLength(0);
+                buffer.Write(keep, 0, leftover);
+            }
+            else
+            {
+                buffer.SetLength(0);
+            }
         }
     }
 

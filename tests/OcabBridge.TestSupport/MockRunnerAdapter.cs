@@ -152,6 +152,73 @@ public sealed class MockRunnerAdapter : IRunnerAdapter
             DateTimeOffset.UtcNow);
     }
 
+    // Mock implementation of OpenEventStreamAsync: returns a handle that
+    // wraps the same IAsyncEnumerable produced by StreamEventsAsync. The
+    // mock does not need a real SSE connection — the dispatcher treats
+    // the handle the same way.
+    public Task<RunnerEventStream> OpenEventStreamAsync(
+        string sessionId,
+        CancellationToken ct)
+    {
+        if (!_activeSessions.ContainsKey(sessionId))
+        {
+            throw new RunnerAdapterException(
+                "session_not_found",
+                "open_event_stream",
+                System.Net.HttpStatusCode.NotFound,
+                $"mock session {sessionId} not found");
+        }
+        return Task.FromResult(new RunnerEventStream(
+            sessionId,
+            innerCt => StreamEventsAsync(sessionId, innerCt)));
+    }
+
+    // Mock implementation of WaitForTerminalResultAsync: builds a
+    // terminal result from the active scenario without polling any HTTP
+    // endpoint. The DeterministicCoordinatorTests rely on this method
+    // to drive the coordinator through Completion/Cancelled/Failed
+    // without a real runner.
+    public async Task<RunnerTerminalResult> WaitForTerminalResultAsync(
+        string sessionId,
+        TimeSpan pollInterval,
+        CancellationToken cancellationToken)
+    {
+        if (!_activeSessions.ContainsKey(sessionId))
+        {
+            throw new RunnerAdapterException(
+                "session_not_found",
+                "wait_for_terminal",
+                System.Net.HttpStatusCode.NotFound,
+                $"mock session {sessionId} not found");
+        }
+
+        switch (ActiveScenario)
+        {
+            case "blocked":
+                try { await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); }
+                catch (OperationCanceledException) { throw; }
+                return new RunnerTerminalResult(false, null, "cancelled_before_terminal", string.Empty);
+            case "error":
+                var errPayload = "{\"error\":\"mock upstream_failure\"}";
+                return new RunnerTerminalResult(false, null, errPayload, errPayload);
+            case "slow":
+                if (SlowDelayMs > TimeSpan.Zero)
+                {
+                    try { await Task.Delay(SlowDelayMs, cancellationToken).ConfigureAwait(false); }
+                    catch (OperationCanceledException) { throw; }
+                }
+                var slowPayload = "{\"text\":\"hello from mock runner\",\"sessionId\":\"" + sessionId + "\"}";
+                return new RunnerTerminalResult(true, "hello from mock runner", null, slowPayload);
+            default:
+                // normal: short delay so the test exercises the same
+                // path as the real adapter.
+                try { await Task.Delay(50, cancellationToken).ConfigureAwait(false); }
+                catch (OperationCanceledException) { throw; }
+                var normalPayload = "{\"text\":\"hello from mock runner\",\"sessionId\":\"" + sessionId + "\"}";
+                return new RunnerTerminalResult(true, "hello from mock runner", null, normalPayload);
+        }
+    }
+
     public Task CancelAsync(string sessionId, CancellationToken ct)
     {
         if (_activeSessions.TryRemove(sessionId, out _))

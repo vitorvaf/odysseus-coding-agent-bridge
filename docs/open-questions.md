@@ -35,9 +35,9 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | OQ-010 | Repositório piloto | Sandbox dedicado, não usar projetos sensíveis | Slice 1.1.3 | P0 | Operador | Criar fixture local em `poc/fixtures/pilot-repo` | Slug cadastrado e validado | Resolved | 0014 |
 | OQ-011 | Estratégia de workspace | Clone, worktree, copy, --reference | Epic 2 | P0 | Plataforma | POC em `docs/discovery/005-workspace-strategy-evaluation.md` | ADR substituto | Resolved | 0005 |
-| OQ-012 | Submodules | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com submódulo | Estratégia documentada | Open | — |
-| OQ-013 | Git LFS | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com LFS | Estratégia documentada | Open | — |
-| OQ-014 | Alterações locais | Detecção e tratamento | Epic 2 | P2 | Plataforma | Teste em fixture suja | Estratégia documentada | Open | — |
+| OQ-012 | Submodules | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com submódulo | Estratégia documentada | Open (estratégia: rejeitar explicitamente execuções workspace-write cujo repositório contenha `.gitmodules` ou submodules populados; ver [Discovery 016 § 4.6](discovery/016-workspace-manager-scope.md#46-postura-explícita-sobre-oq-012-oq-013-oq-014)) | — |
+| OQ-013 | Git LFS | Tratamento | Epic 2 | P2 | Plataforma | Teste em fixture com LFS | Estratégia documentada | Open (estratégia: rejeitar explicitamente execuções workspace-write quando a origem contiver atributos `filter=lfs` rastreados; ver [Discovery 016 § 4.6](discovery/016-workspace-manager-scope.md#46-postura-explícita-sobre-oq-012-oq-013-oq-014)) | — |
+| OQ-014 | Alterações locais | Detecção e tratamento | Epic 2 | P2 | Plataforma | Teste em fixture suja | Estratégia documentada | Open (estratégia: rejeitar explicitamente execuções workspace-write se a origem (`Repository.urlCanonical`) estiver com working tree sujo na `baseReference`; ver [Discovery 016 § 4.6](discovery/016-workspace-manager-scope.md#46-postura-explícita-sobre-oq-012-oq-013-oq-014)) | — |
 | OQ-015 | Monorepos | Estratégia futura | Operação | P3 | Plataforma | Análise | Estratégia documentada | Open | — |
 
 ## Runners
@@ -48,7 +48,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-021 | Autenticação OpenCode | Basic Auth confirmada na source v1.18.7 | Slice 1.1.3 | P0 | Segurança | Validação no container | Decisão registrada | In progress | — |
 | OQ-022 | Autenticação Codex | A confirmar pós-MVP | Epic 4 | P1 | Plataforma | Discovery futuro | Estratégia definida | Open | — |
 | OQ-023 | Interface Antigravity | Em discovery | Epic 5 | P0 | Plataforma | Discovery externo | Discovery report | Open | 0011 |
-| OQ-024 | Retries | Política de retries em falhas transitórias | Epic 2 | P1 | Plataforma | Análise | Estratégia documentada | Open | — |
+| OQ-024 | Retries | Política de retries em falhas transitórias | Epic 2 | P1 | Plataforma | Análise | Estratégia documentada | Open (escopo da SLICE-WORKSPACE-001: retries apenas em setup/cleanup idempotentes do workspace (`git worktree add` / `git worktree remove` / limpeza de `runs/<runId>/workspace`); retry do agente `IRunnerAdapter.*` permanece fora do escopo da slice 2.1.1; ver [Discovery 016 § 4.5](discovery/016-workspace-manager-scope.md#45-escopo-de-retries-oq-024) e [SLICE-WORKSPACE-001 § 4.6](planning/slices/SLICE-WORKSPACE-001.md#46-retries-oq-024)) | — |
 
 ## Segurança
 
@@ -106,7 +106,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | ID | Título | Descrição | Bloqueia | Prioridade | Responsável sugerido | Método de validação | Resultado esperado | Status | ADR relacionado |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | OQ-100 | Licença do repositório | LICENSE está como Apache-2.0; foi decisão não autorizada | — | P1 | Sponsor | Aprovação explícita do sponsor | LICENSE confirmado ou substituído | Resolved | 0016 |
-| OQ-200 | Estabilização do Epic 1 | PR `chore(stabilization)` deve fechar 4 pendências: validação OpenCode real ponta a ponta, rede de testes automatizados + CI, decisão de licença, correção de nomenclatura Milestone/Epic/Slice | Epic 1 → Epic 2 | P1 | Plataforma | Smoke test contra OpenCode real com provedor determinístico; pipeline verde; OQ-100 resolvida; docs atualizados | PR mergeado e gate considerado fechado | Open (reaberta em 2026-07-28; STAB-004 cobriu 1/4 cenários `OpenCodeRealLifecycleTests` com OpenCode real — `error_failed` passa; `cancel`, `timeout`, `completed` continuam pendentes porque `opencode.json` em v1.18.8 não carrega o `baseURL` configurado. Resolução trackada em `STAB-005` — `STAB-005` endereçará configuração de provider via `auth.json` override, Docker DNS rebinding, ou CLI flag.) | 0017, 0018 |
+| OQ-200 | Estabilização do Epic 1 | PR `chore(stabilization)` deve fechar 4 pendências: validação OpenCode real ponta a ponta, rede de testes automatizados + CI, decisão de licença, correção de nomenclatura Milestone/Epic/Slice | Epic 1 → Epic 2 | P1 | Plataforma | Smoke test contra OpenCode real com provedor determinístico; pipeline verde; OQ-100 resolvida; docs atualizados | PR mergeado e gate considerado fechado | Resolved (PR #3 `STAB-005A.3: Complete OpenCode bridge run via session messages` mergeada em `phase-1-mvp` no commit `6e21573f`. Completion real provado via `GET /session/{id}/message` (terminal authority); `GET /event` permanece como pump SSE auxiliar de `RunEvent`. Cenários `RealOpenCodePoc` `cancel`/`timeout`/`provider-error` seguem como follow-up fora da STAB-005A.3. Transição para Epic 2 / SLICE-WORKSPACE-001 liberada. Evidência: [Discovery 015](discovery/015-opencode-real-provider-poc.md).) | 0017, 0018 |
 
 ## Próximos passos obrigatórios (P0)
 
@@ -144,7 +144,7 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-011 | Resolved |
 | OQ-012 | Open |
 | OQ-013 | Open |
-| OQ-014 | Open |
+| OQ-014 | Open (estratégia registrada em Discovery 016 — workspace rejeitado se origem suja) |
 | OQ-015 | Open |
 | OQ-020 | Resolved |
 | OQ-021 | In progress (validar em slice 1.1.3) |
@@ -168,5 +168,5 @@ Questões que ainda não foram resolvidas com evidência. Cada item possui ID, p
 | OQ-090 | Resolved |
 | OQ-091 | Resolved (Basic via `OPENCODE_SERVER_PASSWORD` validado em discovery/011) |
 | OQ-100 | Resolved (ADR-0016; Apache-2.0 aceito em 2026-07-28) |
-| OQ-200 | Open (reaberta em 2026-07-28: `DeterministicCoordinatorTests` valida apenas o caminho coordinator + dispatcher + adapter com MockRunnerAdapter; o caminho OCAB → OpenCode real → provider determinístico → eventos reais ainda precisa ser exercitado. Cobertura completa depende da `SLICE-STAB-004`.) |
+| OQ-200 | Resolved (PR #3 `6e21573f`; completion real provado via `/session/{id}/message`; `GET /event` é pump auxiliar; cancel/timeout/provider-error permanecem como follow-up; Epic 2 / SLICE-WORKSPACE-001 liberado) |
 | OQ-201 | Resolved (adapter alinhado, contract drift eliminado, contract tests 10/10 verdes) |

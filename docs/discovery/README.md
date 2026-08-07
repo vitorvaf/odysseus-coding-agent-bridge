@@ -28,6 +28,12 @@ docs/discovery/
 ├── 008-resource-limits-baseline.md
 ├── 009-security-discovery.md
 ├── 010-discovery-decisions.md
+├── 011-opencode-real-validation.md
+├── 012-opencode-contract-spike.md
+├── 013-opencode-end-to-end-smoke.md
+├── 014-deterministic-e2e-lifecycle.md
+├── 015-opencode-real-provider-poc.md
+├── 016-workspace-manager-scope.md
 └── phase-0-report.md
 ```
 
@@ -45,6 +51,12 @@ docs/discovery/
 | 008 | Resource limits baseline | Epic 1 | P0 |
 | 009 | Security discovery | Epic 1 / Epic 2 | P0 |
 | 010 | Discovery decisions consolidation | — | — |
+| 011 | OpenCode real validation | Epic 1 | P0 |
+| 012 | OpenCode contract spike | Epic 1 | P0 |
+| 013 | OpenCode end-to-end smoke | Epic 1 | P0 |
+| 014 | Deterministic E2E lifecycle | Epic 1 → Epic 2 | P0 |
+| 015 | OpenCode real provider PoC | Epic 1 → Epic 2 | P0 |
+| 016 | Workspace Manager scope | Epic 2 (Slice 2.1.1) | P0 |
 
 ## Gate para iniciar o Epic 1
 
