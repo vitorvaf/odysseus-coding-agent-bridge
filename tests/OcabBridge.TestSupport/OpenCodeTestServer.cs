@@ -32,8 +32,29 @@ public sealed class OpenCodeTestServer : IAsyncLifetime
 {
     public const string CollectionName = "OpenCodeContractServer";
 
-    public int Port { get; } = 14301;
+    // Dynamic free port per fixture instance. ContractTests and
+    // IntegrationTests each declare their own ICollectionFixture<
+    // OpenCodeTestServer> and xUnit runs the two assemblies in parallel,
+    // so a shared fixed port (previously 14301) collided intermittently
+    // and flaked CI. Reserving an OS-assigned ephemeral port per
+    // instance removes the collision regardless of how many collections
+    // start concurrently. Mirrors OpenCodeRealFixture.GetFreePort.
+    public int Port { get; }
     public string BaseUrl => $"http://127.0.0.1:{Port}";
+
+    public OpenCodeTestServer()
+    {
+        Port = GetFreePort();
+    }
+
+    private static int GetFreePort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
+    }
     public string Password { get; } = "test123_contract";
     // Pinned upstream version validated by the spike in
     // docs/discovery/012-opencode-contract-spike.md and locked in by
